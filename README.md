@@ -26,7 +26,7 @@ sudo apt-get install git
 
 You may need to use environment variables to point to a non-default version of gcc.
 
-###On Ubuntu, you can install a development environment with
+On Ubuntu, you can install a development environment with
 
 sudo apt-get install build-essential
 
@@ -46,6 +46,7 @@ sudo apt-get install python-dev
 “Protocol buffers are a language-neutral, platform-neutral extensible mechanism for serializing structured data.” In gem5, the protobuf library is used for trace generation and playback. protobuf is not a required package, unless you plan on using it for trace generation and playback.
 
 sudo apt-get install libprotobuf-dev python-protobuf protobuf-compiler libgoogle-perftools-dev
+
 Getting the code
 Change directories to where you want to download the gem5 source. Then, to clone the repository, use the git clone command.
 
