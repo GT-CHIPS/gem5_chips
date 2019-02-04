@@ -4,6 +4,7 @@ Requirements for gem5
 See gem5 requirements for more details: (http://gem5.org/Compiling_M5#Required_Software)
 
 For information about gem5: http://gem5.org/Main_Page
+
 For information about garnet2.0: http://www.gem5.org/Garnet2.0
 
 
