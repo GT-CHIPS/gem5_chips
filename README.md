@@ -61,4 +61,4 @@ run command
 --------------
 ### BFS:
 
- ./build/RISCV_MESI_Two_Level/gem5.opt -d results/BFS configs/example/se.py --cpu-type DerivO3CPU -n 64 -c binaries/BFS -o '-n 64 input/rMatGraph_J_5_100' --ruby --network=garnet2.0 --mem-size=4096MB --mesh-rows=8 --topology=Mesh_XY
+ ./build/RISCV_MESI_Two_Level/gem5.opt -d results/BFS configs/example/se.py --cpu-type DerivO3CPU -n 64 -c binaries/BFS -o '-n 64 input/rMatGraph_J_5_100' --ruby --network=garnet2.0 --num-l2caches=64 --mem-size=4096MB --mesh-rows=8 --topology=Mesh_XY
