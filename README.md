@@ -16,12 +16,13 @@ The requirements are detailed below.
 sudo apt install build-essential git m4 scons zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev python-dev python
 
 
-###git (Git):
+### git (Git):
 
 The gem5 project uses Git for version control. Git is a distributed version control system. More information about Git can be found by following the link. Git should be installed by default on most platforms. However, to install Git in Ubuntu use
 
 sudo apt-get install git
-gcc 4.8+
+
+### gcc 4.8+
 
 You may need to use environment variables to point to a non-default version of gcc.
 
@@ -29,19 +30,19 @@ You may need to use environment variables to point to a non-default version of g
 
 sudo apt-get install build-essential
 
-###SCons
+### SCons
 gem5 uses SCons as its build environment. SCons is like make on steroids and uses Python scripts for all aspects of the build process. This allows for a very flexible (if slow) build system.
 
 To get SCons on Ubuntu use
 
 sudo apt-get install scons
 
-###Python 2.7+
+### Python 2.7+
 gem5 relies on the Python development libraries. To install these on Ubuntu use
 
 sudo apt-get install python-dev
 
-###protobuf 2.1+
+### protobuf 2.1+
 “Protocol buffers are a language-neutral, platform-neutral extensible mechanism for serializing structured data.” In gem5, the protobuf library is used for trace generation and playback. protobuf is not a required package, unless you plan on using it for trace generation and playback.
 
 sudo apt-get install libprotobuf-dev python-protobuf protobuf-compiler libgoogle-perftools-dev
