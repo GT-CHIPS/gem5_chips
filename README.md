@@ -127,7 +127,8 @@ More details about gem5
 
 Contact
 -------------------------------------
-Tushar Krishna: tushar@ece.gatech.edu
+- Tushar Krishna: tushar@ece.gatech.edu
+- Mayank Parasar: mparasar3@gatech.edu
 
 Acknowledgments
 -----------------
