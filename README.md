@@ -60,8 +60,10 @@ Build command
 (you can add -j N for a faster N-threaded build)
 
 
-Example run command
+Example run commands
 --------------
+See `my_scripts/run_demo.sh`
+
 ### Hello World
 ```
 ./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
@@ -93,7 +95,7 @@ Example run command
 --ruby \
 --network=garnet2.0 \
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
--c workloads/ligra/bin/riscv/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
+-c my_benchmarks/ligra/bin/riscv/BFS -o '-n 64 my_benchmarks/ligra/input/rMatGraph_J_5_100'
 ```
 
 Example CHIPS Topologies
