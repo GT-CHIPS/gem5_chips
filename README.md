@@ -1,13 +1,14 @@
 # gem5_chips
 
 This is a modified version of gem5 with support to model and study CHIPS systems:
+![alt text](https://github.com/GT-CHIPS/gem5_chips/blob/master/images/chips_examples.png)
 
 
 
 How to install gem5:
 -------------------------------------
 
-git clone https://github.com/GT-CHIPS/gem5_chips.git
+`git clone https://github.com/GT-CHIPS/gem5_chips.git`
 
 
 Software packages to install gem5:
@@ -55,13 +56,14 @@ Change directories to where you want to download the gem5 source. Then, to clone
 
 Build command
 --------------
-scons build/RISCV_MESI_Two_Level/gem5.opt
+```scons build/RISCV_MESI_Two_Level/gem5.opt```
 (you can add -j N for a faster N-threaded build)
 
 
 Example run command
 --------------
 ### Hello World
+```
 ./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
 --cpu-type TimingSimpleCPU \
 --num-cpus=64 \
@@ -75,8 +77,10 @@ Example run command
 --network=garnet2.0
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
 -c tests/test-progs/hello/bin/riscv/linux/hello
+```
 
 ### BFS:
+```
 ./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
 --cpu-type TimingSimpleCPU \
 --num-cpus=64 \
@@ -90,22 +94,42 @@ Example run command
 --network=garnet2.0
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
 -c workloads/ligra/binaries/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
-
+```
 
 Example CHIPS Topologies
 -----------------
-configs/topologies/CHIPS_Multicore_Monolithic.py
+configs/topologies/CHIPS_Multicore_Monolithic.py 
 configs/topologies/CHIPS_Multicore_MemCtrlChiplet4.py
 configs/topologies/CHIPS_Multicore_GTRocketN.py
 
 
 Commandline options to modify CLIP parameters
 -----------------
---chiplet-link-latency
---chiplet-link-width
---interposer-link-latency
---interposer-link-width
---clip-logic-ifc-delay
---clip-phys-ifc-delay
---buffers-per-ctrl-vc
---buffers-per-data-vc
+![alt text](https://github.com/GT-CHIPS/gem5_chips/blob/master/images/clip.png)
+``
+- --chiplet-link-latency
+- --chiplet-link-width
+- --interposer-link-latency
+- --interposer-link-width
+- --clip-logic-ifc-delay
+- --clip-phys-ifc-delay
+- --buffers-per-ctrl-vc
+- --buffers-per-data-vc
+``
+
+More details about gem5
+-----------------
+- [Public Repo](www.gem5.org)
+- [Garnet Network Model](www.gem5.org/Garnet2.0)
+- [Learning gem5](http://learning.gem5.org/)
+- [Dependencies](http://gem5.org/Dependencies)
+
+Contact
+-------------------------------------
+Tushar Krishna: tushar@ece.gatech.edu
+
+Acknowledgments
+-----------------
+- This work was supported by DARPA CHIPS.
+- Srikant Bharadwaj (AMD Research)
+- Christopher Batten, Tuan Ta (Cornell University)
