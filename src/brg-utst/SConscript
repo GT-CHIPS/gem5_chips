@@ -1,0 +1,11 @@
+# -*- mode:python -*-
+
+Import('*')
+
+SimObject('TestHarness.py')
+
+Source('test_harness.cc')
+Source('test_suite.cc')
+Source('test_port.cc')
+
+DebugFlag('UnitTest')

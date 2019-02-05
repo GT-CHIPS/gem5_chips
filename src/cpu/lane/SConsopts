@@ -1,0 +1,7 @@
+#
+# Authors: Tuan Ta
+#
+
+Import('*')
+
+CpuModel('LaneCPU', default=True)

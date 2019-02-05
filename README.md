@@ -1,17 +1,19 @@
 # gem5_chips
 
-Requirements for gem5
-See gem5 requirements for more details: (http://gem5.org/Compiling_M5#Required_Software)
+This is a modified version of gem5 with support to model and study CHIPS systems:
 
-For information about gem5: http://gem5.org/Main_Page
 
-For information about garnet2.0: http://www.gem5.org/Garnet2.0
 
+How to install gem5:
+-------------------------------------
+
+git clone https://github.com/GT-CHIPS/gem5_chips.git
+
+
+Software packages to install gem5:
+-------------------------------------
 
 On Ubuntu, you can install all of the required dependencies with the following command.
-
-The requirements are detailed below.
--------------------------------------
 
 sudo apt install build-essential git m4 scons zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev python-dev python
 
@@ -51,14 +53,59 @@ Getting the code
 Change directories to where you want to download the gem5 source. Then, to clone the repository, use the git clone command.
 
 
-build command
+Build command
 --------------
-scons -j64 build/RISCV_MESI_Two_Level/gem5.opt
+scons build/RISCV_MESI_Two_Level/gem5.opt
+(you can add -j N for a faster N-threaded build)
 
 
-
-run command
+Example run command
 --------------
+### Hello World
+./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
+--cpu-type TimingSimpleCPU \
+--num-cpus=64 \
+--l1d_size=16kB \
+--l1i_size=16kB \
+--num-l2caches=64 \
+--l2_size=128kB \
+--num-dirs=4 \
+--mem-size=4096MB \
+--ruby
+--network=garnet2.0
+--topology=CHIPS_Multicore_MemCtrlChiplet4 \
+-c tests/test-progs/hello/bin/riscv/linux/hello
+
 ### BFS:
+./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
+--cpu-type TimingSimpleCPU \
+--num-cpus=64 \
+--l1d_size=16kB \
+--l1i_size=16kB \
+--num-l2caches=64 \
+--l2_size=128kB \
+--num-dirs=4 \
+--mem-size=4096MB \
+--ruby
+--network=garnet2.0
+--topology=CHIPS_Multicore_MemCtrlChiplet4 \
+-c workloads/ligra/binaries/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
 
- ./build/RISCV_MESI_Two_Level/gem5.opt -d results/BFS configs/example/se.py --cpu-type DerivO3CPU -n 64 -c binaries/BFS -o '-n 64 input/rMatGraph_J_5_100' --ruby --network=garnet2.0 --num-l2caches=64 --mem-size=4096MB --mesh-rows=8 --topology=Mesh_XY
+
+Example CHIPS Topologies
+-----------------
+configs/topologies/CHIPS_Multicore_Monolithic.py
+configs/topologies/CHIPS_Multicore_MemCtrlChiplet4.py
+configs/topologies/CHIPS_Multicore_GTRocketN.py
+
+
+Commandline options to modify CLIP parameters
+-----------------
+--chiplet-link-latency
+--chiplet-link-width
+--interposer-link-latency
+--interposer-link-width
+--clip-logic-ifc-delay
+--clip-phys-ifc-delay
+--buffers-per-ctrl-vc
+--buffers-per-data-vc

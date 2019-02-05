@@ -1,0 +1,8 @@
+# -*- mode:python -*-
+
+Import('*')
+
+SimObject('TestMemCtrlHarness.py')
+
+Source('test_memctrl_suite.cc')
+Source('test_memctrl_harness.cc')

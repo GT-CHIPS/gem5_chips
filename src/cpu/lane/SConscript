@@ -1,0 +1,12 @@
+#
+# Authors: Tuan Ta
+#
+
+Import('*')
+
+SimObject('LaneCPU.py')
+
+# source files
+Source('lane.cc')
+
+# debug flags
