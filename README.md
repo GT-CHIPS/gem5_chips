@@ -16,7 +16,7 @@ Software packages to install gem5:
 
 On Ubuntu, you can install all of the required dependencies with the following command.
 
-sudo apt install build-essential git m4 scons zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev python-dev python
+```sudo apt install build-essential git m4 scons zlib1g zlib1g-dev libprotobuf-dev protobuf-compiler libprotoc-dev libgoogle-perftools-dev python-dev python```
 
 
 ### git (Git):
@@ -73,8 +73,8 @@ Example run command
 --l2_size=128kB \
 --num-dirs=4 \
 --mem-size=4096MB \
---ruby
---network=garnet2.0
+--ruby \
+--network=garnet2.0 \
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
 -c tests/test-progs/hello/bin/riscv/linux/hello
 ```
@@ -90,8 +90,8 @@ Example run command
 --l2_size=128kB \
 --num-dirs=4 \
 --mem-size=4096MB \
---ruby
---network=garnet2.0
+--ruby \
+--network=garnet2.0 \
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
 -c workloads/ligra/binaries/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
 ```
