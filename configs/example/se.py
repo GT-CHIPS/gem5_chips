@@ -279,6 +279,7 @@ else:
     CacheConfig.config_cache(options, system)
     MemConfig.config_mem(options, system)
 
+m5.ticks.setGlobalFrequency('500ps')
 m5.disableAllListeners()
 
 root = Root(full_system = False, system = system)

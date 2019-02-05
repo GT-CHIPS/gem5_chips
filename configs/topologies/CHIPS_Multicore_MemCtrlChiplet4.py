@@ -79,7 +79,7 @@ class CHIPS_Multicore_MemCtrlChiplet4(SimpleTopology):
         # multiple of the number of routers and the number of directories
         # must be four.
         assert(num_rows > 0 and num_rows <= options.num_cpus)
-        num_columns = int(num_routers / num_rows)
+        num_columns = int(len(cpu_nodes) / num_rows)
         assert(num_columns * num_rows == options.num_cpus)
         cpus_per_router, remainder = divmod(len(cpu_nodes), options.num_cpus)
         assert(cpus_per_router == 1)
