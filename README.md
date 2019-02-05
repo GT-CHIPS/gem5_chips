@@ -98,24 +98,25 @@ Example run command
 
 Example CHIPS Topologies
 -----------------
+```
 configs/topologies/CHIPS_Multicore_Monolithic.py 
 configs/topologies/CHIPS_Multicore_MemCtrlChiplet4.py
 configs/topologies/CHIPS_Multicore_GTRocketN.py
-
+```
 
 Commandline options to modify CLIP parameters
 -----------------
 ![alt text](https://github.com/GT-CHIPS/gem5_chips/blob/master/images/clip.png)
-``
-- --chiplet-link-latency
-- --chiplet-link-width
-- --interposer-link-latency
-- --interposer-link-width
-- --clip-logic-ifc-delay
-- --clip-phys-ifc-delay
-- --buffers-per-ctrl-vc
-- --buffers-per-data-vc
-``
+
+- `--chiplet-link-latency`
+- `--chiplet-link-width`
+- `--interposer-link-latency`
+- `--interposer-link-width`
+- `--clip-logic-ifc-delay`
+- `--clip-phys-ifc-delay`
+- `--buffers-per-ctrl-vc`
+- `--buffers-per-data-vc`
+
 
 More details about gem5
 -----------------
