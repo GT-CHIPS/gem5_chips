@@ -23,7 +23,7 @@ On Ubuntu, you can install all of the required dependencies with the following c
 
 The gem5 project uses Git for version control. Git is a distributed version control system. More information about Git can be found by following the link. Git should be installed by default on most platforms. However, to install Git in Ubuntu use
 
-sudo apt-get install git
+`sudo apt-get install git`
 
 ### gcc 4.8+
 
@@ -31,24 +31,24 @@ You may need to use environment variables to point to a non-default version of g
 
 On Ubuntu, you can install a development environment with
 
-sudo apt-get install build-essential
+`sudo apt-get install build-essential`
 
 ### SCons
 gem5 uses SCons as its build environment. SCons is like make on steroids and uses Python scripts for all aspects of the build process. This allows for a very flexible (if slow) build system.
 
 To get SCons on Ubuntu use
 
-sudo apt-get install scons
+`sudo apt-get install scons`
 
 ### Python 2.7+
 gem5 relies on the Python development libraries. To install these on Ubuntu use
 
-sudo apt-get install python-dev
+`sudo apt-get install python-dev`
 
 ### protobuf 2.1+
 “Protocol buffers are a language-neutral, platform-neutral extensible mechanism for serializing structured data.” In gem5, the protobuf library is used for trace generation and playback. protobuf is not a required package, unless you plan on using it for trace generation and playback.
 
-sudo apt-get install libprotobuf-dev python-protobuf protobuf-compiler libgoogle-perftools-dev
+`sudo apt-get install libprotobuf-dev python-protobuf protobuf-compiler libgoogle-perftools-dev`
 
 Getting the code
 Change directories to where you want to download the gem5 source. Then, to clone the repository, use the git clone command.
@@ -99,7 +99,7 @@ Example run command
 Example CHIPS Topologies
 -----------------
 ```
-configs/topologies/CHIPS_Multicore_Monolithic.py 
+configs/topologies/CHIPS_Multicore_Monolithic.py
 configs/topologies/CHIPS_Multicore_MemCtrlChiplet4.py
 configs/topologies/CHIPS_Multicore_GTRocketN.py
 ```
