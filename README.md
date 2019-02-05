@@ -79,7 +79,7 @@ Example run command
 -c tests/test-progs/hello/bin/riscv/linux/hello
 ```
 
-### BFS:
+### BFS
 ```
 ./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
 --cpu-type TimingSimpleCPU \
@@ -93,7 +93,7 @@ Example run command
 --ruby \
 --network=garnet2.0 \
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
--c workloads/ligra/binaries/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
+-c workloads/ligra/bin/riscv/BFS -o '-n 64 workloads/ligra/input/rMatGraph_J_5_100'
 ```
 
 Example CHIPS Topologies
