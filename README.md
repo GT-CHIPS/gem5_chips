@@ -81,23 +81,6 @@ See `my_scripts/run_demo.sh`
 -c tests/test-progs/hello/bin/riscv/linux/hello
 ```
 
-### BFS
-```
-./build/RISCV_MESI_Two_Level/gem5.opt configs/example/se.py \
---cpu-type TimingSimpleCPU \
---num-cpus=64 \
---l1d_size=16kB \
---l1i_size=16kB \
---num-l2caches=64 \
---l2_size=128kB \
---num-dirs=4 \
---mem-size=4096MB \
---ruby \
---network=garnet2.0 \
---topology=CHIPS_Multicore_MemCtrlChiplet4 \
--c my_benchmarks/ligra/bin/riscv/BFS -o '-n 64 my_benchmarks/ligra/input/rMatGraph_J_5_100'
-```
-
 Example CHIPS Topologies
 -----------------
 ```
@@ -137,3 +120,4 @@ Acknowledgments
 - This work was supported by DARPA CHIPS.
 - Srikant Bharadwaj (AMD Research)
 - Christopher Batten, Tuan Ta (Cornell University)
+   - for RISC-V patches (http://www.csl.cornell.edu/~cbatten/pdfs/ta-gem5-riscv-slides-carrv2018.pdf)
