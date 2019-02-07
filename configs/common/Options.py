@@ -377,39 +377,3 @@ def addFSOptions(parser):
                       default=None, type="string",
                       help="File with a template for the kernel command line")
 
-def addBRGOptions(parser):
-
-    # Enable BRG-specific fast-forward mode
-    parser.add_option('--brg-fast-forward', action='store_true',
-                      help="Turn on BRG CPU switching mode")
-
-    # Enable CPU activity trace
-    parser.add_option("--activity-trace", action="store_true",
-                      help="Turn on activity trace")
-
-def addLaneOptions(parser):
-    parser.add_option('--lane-group-size', type='int', default='1', \
-                      help='number of lanes per lane group')
-    parser.add_option('--num-tiles', type='int', default='1', \
-                      help='number of tiles')
-    parser.add_option('--l0i', action='store_true', \
-                      help='using L0-I cache')
-    parser.add_option('--l0i-size', type='int', default='1', \
-                      help='number of entries in L0 buffer')
-    parser.add_option('--shared-icache', action='store_true', \
-                      help='sharing I-cache between lanes')
-    parser.add_option('--shared-dcache', action='store_true', \
-                      help='sharing D-cache between lanes')
-    parser.add_option('--allocator-req-latency', type='int', default='1', \
-                      help='Cache allocator request latency'),
-    parser.add_option('--allocator-resp-latency', type='int', default='0', \
-                      help='Cache allocator response latency'),
-    parser.add_option('--icache-mshrs', type='int', default='1', \
-                      help='number of MSHR entries in icache')
-    parser.add_option('--dcache-mshrs', type='int', default='1', \
-                      help='number of MSHR entries in dcache')
-    parser.add_option('--coalescing-icache', action='store_true', \
-                      help='enable coalescing in I-cache')
-    parser.add_option('--coalescing-dcache', action='store_true', \
-                      help='enable coalescing in D-cache')
-
