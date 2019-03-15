@@ -120,4 +120,4 @@ Acknowledgments
 - This work was supported by DARPA CHIPS.
 - Srikant Bharadwaj (AMD Research)
 - Christopher Batten, Tuan Ta (Cornell University)
-   - for RISC-V patches (http://www.csl.cornell.edu/~cbatten/pdfs/ta-gem5-riscv-slides-carrv2018.pdf)
+   - for RISC-V Ruby support and LIGRA workloads (http://www.csl.cornell.edu/~cbatten/pdfs/ta-gem5-riscv-slides-carrv2018.pdf)
