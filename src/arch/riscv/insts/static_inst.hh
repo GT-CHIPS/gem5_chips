@@ -51,11 +51,14 @@ class RiscvStaticInst : public StaticInst
   protected:
     using StaticInst::StaticInst;
 
-    virtual std::string
-    generateDisassembly(Addr pc, const SymbolTable *symtab) const = 0;
-
   public:
-    void advancePC(PCState &pc) const { pc.advance(); }
+    void advancePC(PCState &pc) const override { pc.advance(); }
+
+    size_t
+    asBytes(void *buf, size_t size) override
+    {
+        return simpleAsBytes(buf, size, machInst);
+    }
 };
 
 /**
@@ -95,19 +98,6 @@ class RiscvMacroInst : public RiscvStaticInst
     }
 
     Fault
-    initiateReq(ExecContext *xc, Trace::InstRecord *traceData) const override
-    {
-        panic("Tried to execute a macroop directly!\n");
-    }
-
-    Fault
-    completeReq(PacketPtr pkt, ExecContext *xc,
-                Trace::InstRecord *traceData) const override
-    {
-        panic("Tried to execute a macroop directly!\n");
-    }
-
-    Fault
     execute(ExecContext *xc, Trace::InstRecord *traceData) const override
     {
         panic("Tried to execute a macroop directly!\n");
@@ -127,7 +117,7 @@ class RiscvMicroInst : public RiscvStaticInst
         flags[IsMicroop] = true;
     }
 
-    void advancePC(PCState &pcState) const;
+    void advancePC(PCState &pcState) const override;
 };
 
 }

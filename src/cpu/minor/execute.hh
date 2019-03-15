@@ -54,11 +54,6 @@
 #include "cpu/minor/pipe_data.hh"
 #include "cpu/minor/scoreboard.hh"
 
-/** RoCC-related includes :) */
-#include "rocc/ifcs.hh"
-#include "rocc/packets.hh"
-#include "rocc/types.hh"
-
 namespace Minor
 {
 
@@ -119,9 +114,6 @@ class Execute : public Named
 
     /** Dcache port to pass on to the CPU.  Execute owns this */
     LSQ lsq;
-
-    /** RoCC port interface. Excute owns this :) ... Much like the LSQ */
-    ROCC::RoccInterface roccInterface;
 
     /** Scoreboard of instruction dependencies */
     std::vector<Scoreboard> scoreboard;
@@ -255,21 +247,6 @@ class Execute : public Named
     bool executeMemRefInst(MinorDynInstPtr inst, BranchData &branch,
         bool &failed_predicate, Fault &fault);
 
-    /** Handle extracting returned data from a RoCC response and completing
-     *  the corresponding instruction.
-     *  Fault is an output and will contain any fault caused (and already
-     *  invoked by the function). */
-    void handleRoccResponse(MinorDynInstPtr inst, RoccRespPtr response,
-        Fault &fault);
-
-    /** Execute a RoCC instruction. This calls initiateReq on the instruction
-      * which will then call sendRoccRequest to send a RoCC request. This
-      * return a true if the instruction executed correctly and the request
-      * was queued in the RoCC interface. It will return false if the unit
-      * is full to recieve further requests. A fault will be set by this
-      * function if the request was rejected from the interface. */
-    bool executeRoccInst(MinorDynInstPtr inst, Fault &fault);
-
     /** Has an interrupt been raised */
     bool isInterrupted(ThreadID thread_id) const;
 
@@ -316,7 +293,7 @@ class Execute : public Named
      *          memory access that was issued */
     bool commitInst(MinorDynInstPtr inst, bool early_memory_issue,
         BranchData &branch, Fault &fault, bool &committed,
-        bool &completed_mem_issue, bool &completed_rocc_inst);
+        bool &completed_mem_issue);
 
     /** Try and commit instructions from the ends of the functional unit
      *  pipelines.
@@ -350,14 +327,8 @@ class Execute : public Named
     /** Returns the DcachePort owned by this Execute to pass upwards */
     MinorCPU::MinorCPUPort &getDcachePort();
 
-    /** Returns the DcachePort owned by this Execute to pass upwards */
-    MasterPort &getRoccPort();
-
     /** To allow ExecContext to find the LSQ */
     LSQ &getLSQ() { return lsq; }
-
-    /** I guess to allow ExecContext to find the roccInterface */
-    ROCC::RoccInterface &getRoccInterface() { return roccInterface; }
 
     /** Does the given instruction have the right stream sequence number
      *  to be committed? */

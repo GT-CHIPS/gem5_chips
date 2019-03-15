@@ -57,7 +57,7 @@ machine(MachineType:Directory, "Directory protocol")
     M_DWRI, AccessPermission:Busy, desc="Intermediate state M_DWR-->I"; 
     M_DRDI, AccessPermission:Busy, desc="Intermediate state M_DRD-->I";
 
-    IM, AccessPermission:Read_Only, desc="Intermediate state I-->M";
+    IM, AccessPermission:Busy, desc="Intermediate state I-->M";
     MI, AccessPermission:Busy, desc="Intermediate state M-->I";
     ID, AccessPermission:Busy, desc="Intermediate state for DMA_READ when in I";
     ID_W, AccessPermission:Busy, desc="Intermediate state for DMA_WRITE when in I";
@@ -499,6 +499,7 @@ machine(MachineType:Directory, "Directory protocol")
 
   transition(I, GETX, IM) {
     //d_sendData;
+    v_allocateTBEFromRequestNet;
     qf_queueMemoryFetchRequest;
     e_ownerIsRequestor;
     i_popIncomingRequestQueue;
@@ -507,6 +508,7 @@ machine(MachineType:Directory, "Directory protocol")
   transition(IM, Memory_Data, M) {
     d_sendData;
     //e_ownerIsRequestor;
+    w_deallocateTBE;
     l_popMemQueue;
   }
 

@@ -70,8 +70,6 @@ namespace Stats {
 
 Time statTime(true);
 Tick startTick;
-Counter startInstCount = 0;
-Counter startOpCount = 0;
 
 GlobalEvent *dumpEvent;
 
@@ -81,8 +79,6 @@ struct SimTicksReset : public Callback
     {
         statTime.setTimer();
         startTick = curTick();
-        startInstCount = BaseCPU::numSimulatedInsts();
-        startOpCount = BaseCPU::numSimulatedOps();
     }
 };
 
@@ -108,18 +104,6 @@ statFinalTick()
     return curTick();
 }
 
-Counter
-statSimInsts()
-{
-    return BaseCPU::numSimulatedInsts() - startInstCount;
-}
-
-Counter
-statSimOps()
-{
-    return BaseCPU::numSimulatedOps() - startOpCount;
-}
-
 SimTicksReset simTicksReset;
 
 struct Global
@@ -139,7 +123,7 @@ struct Global
 Global::Global()
 {
     simInsts
-        .functor(statSimInsts)
+        .functor(BaseCPU::numSimulatedInsts)
         .name("sim_insts")
         .desc("Number of instructions simulated")
         .precision(0)
@@ -147,7 +131,7 @@ Global::Global()
         ;
 
     simOps
-        .functor(statSimOps)
+        .functor(BaseCPU::numSimulatedOps)
         .name("sim_ops")
         .desc("Number of ops (including micro ops) simulated")
         .precision(0)

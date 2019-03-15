@@ -42,7 +42,7 @@ configs/example/se.py \
 --network=garnet2.0 \
 --topology=CHIPS_Multicore_MemCtrlChiplet4 \
 --mesh-rows=4 \
--c my_benchmarks/ligra/bin/riscv/BFS -o '-n 64 my_benchmarks/ligra/input/rMatGraph_J_5_100' \
+-c my_benchmarks/ligra/bin/riscv/BFS -o '-n 16 my_benchmarks/ligra/input/rMatGraph_J_5_100' \
 --maxinsts=10000 \
 $1
 

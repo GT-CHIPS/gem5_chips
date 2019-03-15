@@ -71,11 +71,17 @@ class ArmFault : public FaultBase
     bool to64;  // True if the exception is taken in AArch64 state
     ExceptionLevel fromEL;  // Source exception level
     ExceptionLevel toEL;  // Target exception level
-    OperatingMode fromMode;  // Source operating mode
+    OperatingMode fromMode;  // Source operating mode (aarch32)
+    OperatingMode toMode;  // Next operating mode (aarch32)
+
+    // This variable is true if the above fault specific informations
+    // have been updated. This is to prevent that a client is using their
+    // un-updated default constructed value.
+    bool faultUpdated;
 
     bool hypRouted; // True if the fault has been routed to Hypervisor
 
-    Addr getVector(ThreadContext *tc);
+    virtual Addr getVector(ThreadContext *tc);
     Addr getVector64(ThreadContext *tc);
 
   public:
@@ -171,11 +177,28 @@ class ArmFault : public FaultBase
         const ExceptionClass ec;
 
         FaultStat count;
+        FaultVals(const FaultName& name_, const FaultOffset& offset_,
+                const uint16_t& currELTOffset_, const uint16_t& currELHOffset_,
+                const uint16_t& lowerEL64Offset_,
+                const uint16_t& lowerEL32Offset_,
+                const OperatingMode& nextMode_, const uint8_t& armPcOffset_,
+                const uint8_t& thumbPcOffset_, const uint8_t& armPcElrOffset_,
+                const uint8_t& thumbPcElrOffset_, const bool& hypTrappable_,
+                const bool& abortDisable_, const bool& fiqDisable_,
+                const ExceptionClass& ec_)
+        : name(name_), offset(offset_), currELTOffset(currELTOffset_),
+          currELHOffset(currELHOffset_), lowerEL64Offset(lowerEL64Offset_),
+          lowerEL32Offset(lowerEL32Offset_), nextMode(nextMode_),
+          armPcOffset(armPcOffset_), thumbPcOffset(thumbPcOffset_),
+          armPcElrOffset(armPcElrOffset_), thumbPcElrOffset(thumbPcElrOffset_),
+          hypTrappable(hypTrappable_), abortDisable(abortDisable_),
+          fiqDisable(fiqDisable_), ec(ec_) {}
     };
 
     ArmFault(ExtMachInst _machInst = 0, uint32_t _iss = 0) :
         machInst(_machInst), issRaw(_iss), from64(false), to64(false),
-        fromEL(EL0), toEL(EL0), fromMode(MODE_UNDEFINED), hypRouted(false) {}
+        fromEL(EL0), toEL(EL0), fromMode(MODE_UNDEFINED),
+        faultUpdated(false), hypRouted(false) {}
 
     // Returns the actual syndrome register to use based on the target
     // exception level
@@ -188,6 +211,7 @@ class ArmFault : public FaultBase
                 StaticInst::nullStaticInstPtr) override;
     void invoke64(ThreadContext *tc, const StaticInstPtr &inst =
                   StaticInst::nullStaticInstPtr);
+    void update(ThreadContext *tc);
     virtual void annotate(AnnotationIDs id, uint64_t val) {}
     virtual FaultStat& countStat() = 0;
     virtual FaultOffset offset(ThreadContext *tc) = 0;
@@ -204,7 +228,7 @@ class ArmFault : public FaultBase
     virtual ExceptionClass ec(ThreadContext *tc) const = 0;
     virtual uint32_t iss() const = 0;
     virtual bool isStage2() const { return false; }
-    virtual FSR getFsr(ThreadContext *tc) { return 0; }
+    virtual FSR getFsr(ThreadContext *tc) const { return 0; }
     virtual void setSyndrome(ThreadContext *tc, MiscRegIndex syndrome_reg);
 };
 
@@ -245,6 +269,9 @@ class ArmFaultVals : public ArmFault
 
 class Reset : public ArmFaultVals<Reset>
 {
+  protected:
+    Addr getVector(ThreadContext *tc) override;
+
   public:
     void invoke(ThreadContext *tc, const StaticInstPtr &inst =
                 StaticInst::nullStaticInstPtr) override;
@@ -407,11 +434,13 @@ class AbortFault : public ArmFaultVals<T>
     void invoke(ThreadContext *tc, const StaticInstPtr &inst =
                 StaticInst::nullStaticInstPtr) override;
 
-    FSR getFsr(ThreadContext *tc) override;
+    FSR getFsr(ThreadContext *tc) const override;
+    uint8_t getFaultStatusCode(ThreadContext *tc) const;
     bool abortDisable(ThreadContext *tc) override;
     uint32_t iss() const override;
     bool isStage2() const override { return stage2; }
     void annotate(ArmFault::AnnotationIDs id, uint64_t val) override;
+    void setSyndrome(ThreadContext *tc, MiscRegIndex syndrome_reg) override;
     bool isMMUFault() const;
 };
 
@@ -519,6 +548,7 @@ class PCAlignmentFault : public ArmFaultVals<PCAlignmentFault>
     {}
     void invoke(ThreadContext *tc, const StaticInstPtr &inst =
                 StaticInst::nullStaticInstPtr) override;
+    bool routeToHyp(ThreadContext *tc) const override;
 };
 
 /// Stack pointer alignment fault (AArch64 only)
@@ -546,6 +576,7 @@ class SoftwareBreakpoint : public ArmFaultVals<SoftwareBreakpoint>
     SoftwareBreakpoint(ExtMachInst _mach_inst, uint32_t _iss);
 
     bool routeToHyp(ThreadContext *tc) const override;
+    ExceptionClass ec(ThreadContext *tc) const override;
 };
 
 // A fault that flushes the pipe, excluding the faulting instructions
@@ -581,6 +612,7 @@ template<> ArmFault::FaultVals ArmFaultVals<Interrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<VirtualInterrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<FastInterrupt>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<VirtualFastInterrupt>::vals;
+template<> ArmFault::FaultVals ArmFaultVals<IllegalInstSetStateFault>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<SupervisorTrap>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<SecureMonitorTrap>::vals;
 template<> ArmFault::FaultVals ArmFaultVals<PCAlignmentFault>::vals;

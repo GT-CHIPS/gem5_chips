@@ -127,8 +127,8 @@ CPUProgressEvent::description() const
 
 BaseCPU::BaseCPU(Params *p, bool is_checker)
     : MemObject(p), instCnt(0), _cpuId(p->cpu_id), _socketId(p->socket_id),
-      _instMasterId(p->system->getMasterId(name() + ".inst")),
-      _dataMasterId(p->system->getMasterId(name() + ".data")),
+      _instMasterId(p->system->getMasterId(this, "inst")),
+      _dataMasterId(p->system->getMasterId(this, "data")),
       _taskId(ContextSwitchTaskId::Unknown), _pid(invldPid),
       _switchedOut(p->switched_out), _cacheLineSize(p->system->cacheLineSize()),
       interrupts(p->interrupts), profileEvent(NULL),
@@ -140,8 +140,7 @@ BaseCPU::BaseCPU(Params *p, bool is_checker)
       syscallRetryLatency(p->syscallRetryLatency),
       pwrGatingLatency(p->pwr_gating_latency),
       powerGatingOnIdle(p->power_gating_on_idle),
-      enterPwrGatingEvent([this]{ enterPwrGating(); }, name()),
-      activityTraceOn(p->activity_trace)
+      enterPwrGatingEvent([this]{ enterPwrGating(); }, name())
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -319,7 +318,8 @@ BaseCPU::mwaitAtomic(ThreadID tid, ThreadContext *tc, BaseTLB *dtb)
     assert(tid < numThreads);
     AddressMonitor &monitor = addressMonitor[tid];
 
-    Request req;
+    RequestPtr req = std::make_shared<Request>();
+
     Addr addr = monitor.vAddr;
     int block_size = cacheLineSize();
     uint64_t mask = ~((uint64_t)(block_size - 1));
@@ -331,13 +331,13 @@ BaseCPU::mwaitAtomic(ThreadID tid, ThreadContext *tc, BaseTLB *dtb)
     if (secondAddr > addr)
         size = secondAddr - addr;
 
-    req.setVirt(0, addr, size, 0x0, dataMasterId(), tc->instAddr());
+    req->setVirt(0, addr, size, 0x0, dataMasterId(), tc->instAddr());
 
     // translate to physical address
-    Fault fault = dtb->translateAtomic(&req, tc, BaseTLB::Read);
+    Fault fault = dtb->translateAtomic(req, tc, BaseTLB::Read);
     assert(fault == NoFault);
 
-    monitor.pAddr = req.getPaddr() & mask;
+    monitor.pAddr = req->getPaddr() & mask;
     monitor.waiting = true;
 
     DPRINTF(Mwait,"[tid:%d] mwait called (vAddr=0x%lx, line's paddr=0x%lx)\n",
@@ -608,23 +608,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 
         newTC->takeOverFrom(oldTC);
 
-        /* take care of futex map. Otherwise, if there is a thread waiting,
-         * stale tc would be waked up later */
-        assert(newTC->getSystemPtr() == oldTC->getSystemPtr());
-
-        /* get the futexMap from SystemPtr */
-        FutexMap &futex_map = newTC->getSystemPtr()->futexMap;
-        /* replace all occurance of oldTC with newTC */
-        for (auto& entry : futex_map) {
-            auto &waiterList = entry.second;
-            for (auto& it : waiterList) {
-                if (it.tc == oldTC) {
-                    DPRINTFN("Replacing oldTC with newTC in futexMap\n");
-                    it.tc = newTC;
-                }
-            }
-        }
-
         CpuEvent::replaceThreadContext(oldTC, newTC);
 
         assert(newTC->contextId() == oldTC->contextId());
@@ -873,32 +856,4 @@ bool
 BaseCPU::waitForRemoteGDB() const
 {
     return params()->wait_for_remote_gdb;
-}
-
-void
-BaseCPU::printActivityTrace(int misc_reg, TheISA::MiscReg reg_val) const
-{
-    if (activityTraceOn && TheISA::MiscRegNames.count(misc_reg)) {
-        // process misc_reg name
-        std::vector<std::string> tokens;
-        std::string token;
-        std::istringstream tokenStream(TheISA::MiscRegNames.at(misc_reg));
-        while (std::getline(tokenStream, token, '_')) {
-          tokens.push_back(token);
-        }
-
-        // print out activity stat
-        std::cout << std::dec << "ACTIVITY_STAT { "
-                  << "\"cpu\": " << _cpuId
-                  << ", "
-                  << "\"toggle_csr\": " << tokens[tokens.size() - 1]
-                  << ", "
-                  << "\"csr_val\": "
-                  << std::bitset<sizeof(TheISA::MiscReg) * CHAR_BIT>(reg_val)
-                  << ", "
-                  << "\"tick\": " << curTick()
-                  << ", "
-                  << "\"cycle\": " << curCycle()
-                  << " }" << std::endl;
-    }
 }

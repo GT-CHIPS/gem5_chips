@@ -1,7 +1,0 @@
-Import('*')
-
-Source('arbiter.cc')
-
-SimObject('CacheAllocator.py')
-DebugFlag('CacheAllocator')
-Source('cache_allocator.cc')

@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013, 2015 ARM Limited
+# Copyright (c) 2012-2013, 2015, 2018 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -41,9 +41,36 @@
 
 from m5.params import *
 from m5.proxy import *
-from MemObject import MemObject
-from Prefetcher import BasePrefetcher
-from Tags import *
+from m5.SimObject import SimObject
+
+from m5.objects.MemObject import MemObject
+from m5.objects.Prefetcher import BasePrefetcher
+from m5.objects.ReplacementPolicies import *
+from m5.objects.Tags import *
+
+
+# Enum for cache clusivity, currently mostly inclusive or mostly
+# exclusive.
+class Clusivity(Enum): vals = ['mostly_incl', 'mostly_excl']
+
+class WriteAllocator(SimObject):
+    type = 'WriteAllocator'
+    cxx_header = "mem/cache/cache.hh"
+
+    # Control the limits for when the cache introduces extra delays to
+    # allow whole-line write coalescing, and eventually switches to a
+    # write-no-allocate policy.
+    coalesce_limit = Param.Unsigned(2, "Consecutive lines written before "
+                                    "delaying for coalescing")
+    no_allocate_limit = Param.Unsigned(12, "Consecutive lines written before"
+                                       " skipping allocation")
+
+    delay_threshold = Param.Unsigned(8, "Number of delay quanta imposed on an "
+                                     "MSHR with write requests to allow for "
+                                     "write coalescing")
+
+    block_size = Param.Int(Parent.cache_line_size, "block size in bytes")
+
 
 class BaseCache(MemObject):
     type = 'BaseCache'
@@ -74,7 +101,10 @@ class BaseCache(MemObject):
     prefetch_on_access = Param.Bool(False,
          "Notify the hardware prefetcher on every access (not just misses)")
 
-    tags = Param.BaseTags(LRU(), "Tag store (replacement policy)")
+    tags = Param.BaseTags(BaseSetAssoc(), "Tag store")
+    replacement_policy = Param.BaseReplacementPolicy(LRURP(),
+        "Replacement policy")
+
     sequential_access = Param.Bool(False,
         "Whether to access tags and data sequentially")
 
@@ -86,13 +116,13 @@ class BaseCache(MemObject):
 
     system = Param.System(Parent.any, "System we belong to")
 
-# Enum for cache clusivity, currently mostly inclusive or mostly
-# exclusive.
-class Clusivity(Enum): vals = ['mostly_incl', 'mostly_excl']
-
-class Cache(BaseCache):
-    type = 'Cache'
-    cxx_header = 'mem/cache/cache.hh'
+    # Determine if this cache sends out writebacks for clean lines, or
+    # simply clean evicts. In cases where a downstream cache is mostly
+    # exclusive with respect to this cache (acting as a victim cache),
+    # the clean writebacks are essential for performance. In general
+    # this should be set to True for anything but the last-level
+    # cache.
+    writeback_clean = Param.Bool(False, "Writeback clean lines")
 
     # Control whether this cache should be mostly inclusive or mostly
     # exclusive with respect to upstream caches. The behaviour on a
@@ -106,10 +136,22 @@ class Cache(BaseCache):
     clusivity = Param.Clusivity('mostly_incl',
                                 "Clusivity with upstream cache")
 
-    # Determine if this cache sends out writebacks for clean lines, or
-    # simply clean evicts. In cases where a downstream cache is mostly
-    # exclusive with respect to this cache (acting as a victim cache),
-    # the clean writebacks are essential for performance. In general
-    # this should be set to True for anything but the last-level
-    # cache.
-    writeback_clean = Param.Bool(False, "Writeback clean lines")
+    # The write allocator enables optimizations for streaming write
+    # accesses by first coalescing writes and then avoiding allocation
+    # in the current cache. Typically, this would be enabled in the
+    # data cache.
+    write_allocator = Param.WriteAllocator(NULL, "Write allocator")
+
+class Cache(BaseCache):
+    type = 'Cache'
+    cxx_header = 'mem/cache/cache.hh'
+
+
+class NoncoherentCache(BaseCache):
+    type = 'NoncoherentCache'
+    cxx_header = 'mem/cache/noncoherent_cache.hh'
+
+    # This is typically a last level cache and any clean
+    # writebacks would be unnecessary traffic to the main memory.
+    writeback_clean = False
+

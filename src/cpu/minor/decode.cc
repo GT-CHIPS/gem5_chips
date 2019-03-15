@@ -328,12 +328,9 @@ Decode::getScheduledThread()
 bool
 Decode::isDrained()
 {
-    for (ThreadID tid = 0; tid < cpu.numThreads; tid++) {
-        const auto &buffer = inputBuffer[tid];
-        if ((cpu.getContext(tid)->status() == ThreadContext::Active) &&
-            !buffer.empty()) {
+    for (const auto &buffer : inputBuffer) {
+        if (!buffer.empty())
             return false;
-        }
     }
 
     return (*inp.outputWire).isBubble();

@@ -95,6 +95,7 @@ def define_options(parser):
                       type="int", default=50000,
                       help="network-level deadlock threshold.")
 
+
 def create_network(options, ruby):
 
     # Set the network classes based on the command line options
@@ -189,6 +190,8 @@ def init_network(options, network, InterfaceClass):
                                   extLink.credit_links[1], vtype = 0,
                                   width = extLink.int_node.width))
             extLink.rtr_cred_bridge = rtr_cred_bridges
+
+
 
     if options.network == "simple":
         network.setup_buffers()

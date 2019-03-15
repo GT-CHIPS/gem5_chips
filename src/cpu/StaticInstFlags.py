@@ -110,10 +110,6 @@ class StaticInstFlags(Enum):
         # This flag doesn't do anything yet
         'IsMicroBranch',    # This microop branches within the microcode for
                             # a macroop
-
-        # RoCC flags
-        'IsRoCC',
-
         'IsDspOp',
         'IsSquashAfter'     # Squash all uncommitted state after executed
         ]

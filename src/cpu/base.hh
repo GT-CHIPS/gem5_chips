@@ -57,7 +57,6 @@
 #include "arch/interrupts.hh"
 #include "arch/isa_traits.hh"
 #include "arch/microcode_rom.hh"
-#include "arch/registers.hh"
 #include "base/statistics.hh"
 #include "mem/mem_object.hh"
 #include "sim/eventq.hh"
@@ -645,17 +644,6 @@ class BaseCPU : public MemObject
     const Cycles pwrGatingLatency;
     const bool powerGatingOnIdle;
     EventFunctionWrapper enterPwrGatingEvent;
-
-  public:
-    /** Print out activity trace based on a given misc register. This is used
-     *  to track certain phase of execution in a CPU.
-     */
-    void printActivityTrace(int misc_reg, TheISA::MiscReg reg_val) const;
-
-  protected:
-    /** Print out activity trace?
-     */
-    const bool activityTraceOn;
 };
 
 #endif // THE_ISA == NULL_ISA

@@ -94,11 +94,9 @@ def template LRSCMacroConstructor {{
     {
         %(constructor)s;
 
-        flags[IsNonSpeculative] = true;
-
-        MemFenceMicro* rel_fence = nullptr;
-        %(class_name)sMicro* lrsc = nullptr;
-        MemFenceMicro* acq_fence = nullptr;
+        StaticInstPtr rel_fence;
+        StaticInstPtr lrsc;
+        StaticInstPtr acq_fence;
 
         // set up release fence
         if (RL) {
@@ -146,7 +144,6 @@ def template LRSCMicroConstructor {{
             : %(base_class)sMicro("%(mnemonic)s", machInst, %(op_class)s)
     {
         %(constructor)s;
-        flags[IsNonSpeculative] = true;
     }
 }};
 
@@ -156,11 +153,9 @@ def template AtomicMemOpMacroConstructor {{
     {
         %(constructor)s;
 
-        flags[IsNonSpeculative] = true;
-
-        MemFenceMicro* rel_fence = nullptr;
-        %(class_name)sRMW* rmw_op = nullptr;
-        MemFenceMicro* acq_fence = nullptr;
+        StaticInstPtr rel_fence;
+        StaticInstPtr rmw_op;
+        StaticInstPtr acq_fence;
 
         // set up release fence
         if (RL) {
@@ -214,7 +209,6 @@ def template AtomicMemOpRMWConstructor {{
         flags[IsLoad] = false;
         flags[IsStore] = false;
         flags[IsAtomic] = true;
-        flags[IsNonSpeculative] = true;
     }
 }};
 

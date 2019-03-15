@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013, 2016 ARM Limited
+ * Copyright (c) 2011-2013, 2016-2019 ARM Limited
  * Copyright (c) 2013 Advanced Micro Devices, Inc.
  * All rights reserved
  *
@@ -107,6 +107,8 @@ class FullO3CPU : public BaseO3CPU
     using VecElem =  TheISA::VecElem;
     using VecRegContainer =  TheISA::VecRegContainer;
 
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
+
     typedef O3ThreadState<Impl> ImplState;
     typedef O3ThreadState<Impl> Thread;
 
@@ -125,6 +127,7 @@ class FullO3CPU : public BaseO3CPU
 
     BaseTLB *itb;
     BaseTLB *dtb;
+    using LSQRequest = typename LSQ<Impl>::LSQRequest;
 
     /** Overall CPU status. */
     Status _status;
@@ -388,6 +391,14 @@ class FullO3CPU : public BaseO3CPU
 
     bool simPalCheck(int palFunc, ThreadID tid);
 
+    /** Check if a change in renaming is needed for vector registers.
+     * The vecMode variable is updated and propagated to rename maps.
+     *
+     * @param tid ThreadID
+     * @param freelist list of free registers
+     */
+    void switchRenameMode(ThreadID tid, UnifiedFreeList* freelist);
+
     /** Returns the Fault for any valid interrupt. */
     Fault getInterrupts();
 
@@ -400,28 +411,24 @@ class FullO3CPU : public BaseO3CPU
     /** Register accessors.  Index refers to the physical register index. */
 
     /** Reads a miscellaneous register. */
-    TheISA::MiscReg readMiscRegNoEffect(int misc_reg, ThreadID tid) const;
+    RegVal readMiscRegNoEffect(int misc_reg, ThreadID tid) const;
 
     /** Reads a misc. register, including any side effects the read
      * might have as defined by the architecture.
      */
-    TheISA::MiscReg readMiscReg(int misc_reg, ThreadID tid);
+    RegVal readMiscReg(int misc_reg, ThreadID tid);
 
     /** Sets a miscellaneous register. */
-    void setMiscRegNoEffect(int misc_reg, const TheISA::MiscReg &val,
-            ThreadID tid);
+    void setMiscRegNoEffect(int misc_reg, RegVal val, ThreadID tid);
 
     /** Sets a misc. register, including any side effects the write
      * might have as defined by the architecture.
      */
-    void setMiscReg(int misc_reg, const TheISA::MiscReg &val,
-            ThreadID tid);
+    void setMiscReg(int misc_reg, RegVal val, ThreadID tid);
 
-    uint64_t readIntReg(PhysRegIdPtr phys_reg);
+    RegVal readIntReg(PhysRegIdPtr phys_reg);
 
-    TheISA::FloatReg readFloatReg(PhysRegIdPtr phys_reg);
-
-    TheISA::FloatRegBits readFloatRegBits(PhysRegIdPtr phys_reg);
+    RegVal readFloatReg(PhysRegIdPtr phys_reg);
 
     const VecRegContainer& readVecReg(PhysRegIdPtr reg_idx) const;
 
@@ -429,6 +436,13 @@ class FullO3CPU : public BaseO3CPU
      * Read physical vector register for modification.
      */
     VecRegContainer& getWritableVecReg(PhysRegIdPtr reg_idx);
+
+    /** Returns current vector renaming mode */
+    Enums::VecRegRenameMode vecRenameMode() const { return vecMode; }
+
+    /** Sets the current vector renaming mode */
+    void vecRenameMode(Enums::VecRegRenameMode vec_mode)
+    { vecMode = vec_mode; }
 
     /**
      * Read physical vector register lane
@@ -463,25 +477,27 @@ class FullO3CPU : public BaseO3CPU
 
     const VecElem& readVecElem(PhysRegIdPtr reg_idx) const;
 
-    TheISA::CCReg readCCReg(PhysRegIdPtr phys_reg);
+    const VecPredRegContainer& readVecPredReg(PhysRegIdPtr reg_idx) const;
 
-    void setIntReg(PhysRegIdPtr phys_reg, uint64_t val);
+    VecPredRegContainer& getWritableVecPredReg(PhysRegIdPtr reg_idx);
 
-    void setFloatReg(PhysRegIdPtr phys_reg, TheISA::FloatReg val);
+    RegVal readCCReg(PhysRegIdPtr phys_reg);
 
-    void setFloatRegBits(PhysRegIdPtr phys_reg, TheISA::FloatRegBits val);
+    void setIntReg(PhysRegIdPtr phys_reg, RegVal val);
+
+    void setFloatReg(PhysRegIdPtr phys_reg, RegVal val);
 
     void setVecReg(PhysRegIdPtr reg_idx, const VecRegContainer& val);
 
     void setVecElem(PhysRegIdPtr reg_idx, const VecElem& val);
 
-    void setCCReg(PhysRegIdPtr phys_reg, TheISA::CCReg val);
+    void setVecPredReg(PhysRegIdPtr reg_idx, const VecPredRegContainer& val);
 
-    uint64_t readArchIntReg(int reg_idx, ThreadID tid);
+    void setCCReg(PhysRegIdPtr phys_reg, RegVal val);
 
-    float readArchFloatReg(int reg_idx, ThreadID tid);
+    RegVal readArchIntReg(int reg_idx, ThreadID tid);
 
-    uint64_t readArchFloatRegInt(int reg_idx, ThreadID tid);
+    RegVal readArchFloatReg(int reg_idx, ThreadID tid);
 
     const VecRegContainer& readArchVecReg(int reg_idx, ThreadID tid) const;
     /** Read architectural vector register for modification. */
@@ -511,25 +527,31 @@ class FullO3CPU : public BaseO3CPU
     const VecElem& readArchVecElem(const RegIndex& reg_idx,
                                    const ElemIndex& ldx, ThreadID tid) const;
 
-    TheISA::CCReg readArchCCReg(int reg_idx, ThreadID tid);
+    const VecPredRegContainer& readArchVecPredReg(int reg_idx,
+                                                  ThreadID tid) const;
+
+    VecPredRegContainer& getWritableArchVecPredReg(int reg_idx, ThreadID tid);
+
+    RegVal readArchCCReg(int reg_idx, ThreadID tid);
 
     /** Architectural register accessors.  Looks up in the commit
      * rename table to obtain the true physical index of the
      * architected register first, then accesses that physical
      * register.
      */
-    void setArchIntReg(int reg_idx, uint64_t val, ThreadID tid);
+    void setArchIntReg(int reg_idx, RegVal val, ThreadID tid);
 
-    void setArchFloatReg(int reg_idx, float val, ThreadID tid);
+    void setArchFloatReg(int reg_idx, RegVal val, ThreadID tid);
 
-    void setArchFloatRegInt(int reg_idx, uint64_t val, ThreadID tid);
+    void setArchVecPredReg(int reg_idx, const VecPredRegContainer& val,
+                           ThreadID tid);
 
     void setArchVecReg(int reg_idx, const VecRegContainer& val, ThreadID tid);
 
     void setArchVecElem(const RegIndex& reg_idx, const ElemIndex& ldx,
                         const VecElem& val, ThreadID tid);
 
-    void setArchCCReg(int reg_idx, TheISA::CCReg val, ThreadID tid);
+    void setArchCCReg(int reg_idx, RegVal val, ThreadID tid);
 
     /** Sets the commit PC state of a specific thread. */
     void pcState(const TheISA::PCState &newPCState, ThreadID tid);
@@ -555,15 +577,15 @@ class FullO3CPU : public BaseO3CPU
     /** Function to add instruction onto the head of the list of the
      *  instructions.  Used when new instructions are fetched.
      */
-    ListIt addInst(DynInstPtr &inst);
+    ListIt addInst(const DynInstPtr &inst);
 
     /** Function to tell the CPU that an instruction has completed. */
-    void instDone(ThreadID tid, DynInstPtr &inst);
+    void instDone(ThreadID tid, const DynInstPtr &inst);
 
     /** Remove an instruction from the front end of the list.  There's
      *  no restriction on location of the instruction.
      */
-    void removeFrontInst(DynInstPtr &inst);
+    void removeFrontInst(const DynInstPtr &inst);
 
     /** Remove all instructions that are not currently in the ROB.
      *  There's also an option to not squash delay slot instructions.*/
@@ -768,19 +790,25 @@ class FullO3CPU : public BaseO3CPU
     /** Available thread ids in the cpu*/
     std::vector<ThreadID> tids;
 
-    /** CPU read function, forwards read to LSQ. */
-    Fault read(RequestPtr &req, RequestPtr &sreqLow, RequestPtr &sreqHigh,
-               int load_idx)
+    /** CPU pushRequest function, forwards request to LSQ. */
+    Fault pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
+                      unsigned int size, Addr addr, Request::Flags flags,
+                      uint64_t *res, AtomicOpFunctor *amo_op = nullptr)
     {
-        return this->iew.ldstQueue.read(req, sreqLow, sreqHigh, load_idx);
+        return iew.ldstQueue.pushRequest(inst, isLoad, data, size, addr,
+                flags, res, amo_op);
+    }
+
+    /** CPU read function, forwards read to LSQ. */
+    Fault read(LSQRequest* req, int load_idx)
+    {
+        return this->iew.ldstQueue.read(req, load_idx);
     }
 
     /** CPU write function, forwards write to LSQ. */
-    Fault write(RequestPtr &req, RequestPtr &sreqLow, RequestPtr &sreqHigh,
-                uint8_t *data, int store_idx)
+    Fault write(LSQRequest* req, uint8_t *data, int store_idx)
     {
-        return this->iew.ldstQueue.write(req, sreqLow, sreqHigh,
-                                         data, store_idx);
+        return this->iew.ldstQueue.write(req, data, store_idx);
     }
 
     /** Used by the fetch unit to get a hold of the instruction port. */
@@ -818,6 +846,9 @@ class FullO3CPU : public BaseO3CPU
     //number of vector register file accesses
     mutable Stats::Scalar vecRegfileReads;
     Stats::Scalar vecRegfileWrites;
+    //number of predicate register file accesses
+    mutable Stats::Scalar vecPredRegfileReads;
+    Stats::Scalar vecPredRegfileWrites;
     //number of CC register file accesses
     Stats::Scalar ccRegfileReads;
     Stats::Scalar ccRegfileWrites;

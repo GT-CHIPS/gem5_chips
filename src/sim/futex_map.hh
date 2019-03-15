@@ -109,11 +109,7 @@ class WaiterState {
     bool
     checkMask(int wakeup_bitmask) const
     {
-        if ((bitmask & wakeup_bitmask) != 0) {
-            return true;
-        }
-
-        return false;
+        return bitmask & wakeup_bitmask;
     }
 };
 

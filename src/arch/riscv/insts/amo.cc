@@ -69,7 +69,7 @@ string LoadReserved::generateDisassembly(Addr pc,
 }
 
 string LoadReservedMicro::generateDisassembly(Addr pc,
-        const SymbolTable *symtab) const
+    const SymbolTable *symtab) const
 {
     stringstream ss;
     ss << mnemonic << ' ' << registerName(_destRegIdx[0]) << ", ("
@@ -89,7 +89,7 @@ string StoreCond::generateDisassembly(Addr pc,
 }
 
 string StoreCondMicro::generateDisassembly(Addr pc,
-        const SymbolTable *symtab) const
+    const SymbolTable *symtab) const
 {
     stringstream ss;
     ss << mnemonic << ' ' << registerName(_destRegIdx[0]) << ", "
@@ -110,7 +110,7 @@ string AtomicMemOp::generateDisassembly(Addr pc,
 }
 
 string AtomicMemOpMicro::generateDisassembly(Addr pc,
-        const SymbolTable *symtab) const
+    const SymbolTable *symtab) const
 {
     stringstream ss;
     ss << mnemonic << ' ' << registerName(_destRegIdx[0]) << ", "

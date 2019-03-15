@@ -38,12 +38,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/debug.hh"
 #include "base/logging.hh"
 #include "base/trace.hh"
 #include "cpu/smt.hh"
 #include "debug/Checkpoint.hh"
-#include "debug/Event.hh"
 #include "sim/core.hh"
 #include "sim/eventq_impl.hh"
 
@@ -207,12 +205,6 @@ EventQueue::serviceOne()
 {
     std::lock_guard<EventQueue> lock(*this);
     Event *event = head;
-
-    // ctorng: Trace events being serviced
-
-    if (DTRACE(Event))
-      event->trace("being serviced");
-
     Event *next = head->nextInBin;
     event->flags.clear(Event::Scheduled);
 

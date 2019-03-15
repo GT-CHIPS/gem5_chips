@@ -55,8 +55,8 @@ Linux::openSpecialFile(std::string path, Process *process,
     } else if (path.compare(0, 11, "/etc/passwd") == 0) {
         data = Linux::etcPasswd(process, tc);
         matched = true;
-    } else if (path.compare(0, 13, "/proc/cpuinfo") == 0) {
-        data = Linux::procCpuinfo(process, tc);
+    } else if (path.compare(0, 30, "/sys/devices/system/cpu/online") == 0) {
+        data = Linux::cpuOnline(process, tc);
         matched = true;
     }
 
@@ -92,38 +92,8 @@ Linux::etcPasswd(Process *process, ThreadContext *tc)
 }
 
 std::string
-Linux::procCpuinfo(Process *process, ThreadContext *tc)
+Linux::cpuOnline(Process *process, ThreadContext *tc)
 {
-    std::string tmpfile;
-
-    for (int i = 0; i < process->system->numContexts(); i++) {
-        tmpfile += csprintf("processor        :%d\n"
-                            "vendor_id        :\n"
-                            "cpu family       :\n"
-                            "model            :\n"
-                            "model name       :\n"
-                            "stepping         :\n"
-                            "microcode        :\n"
-                            "cpu MHz          :\n"
-                            "cache size       :\n"
-                            "physical id      :%d\n"
-                            "siblings         :\n"
-                            "core id          :%d\n"
-                            "cpu cores        :%d\n"
-                            "apicid           :\n"
-                            "initial apicid   :\n"
-                            "fpu              :\n"
-                            "fpu_exception    :\n"
-                            "cpuid level      :\n"
-                            "wp               :\n"
-                            "flags            :\n"
-                            "bogomips         :\n"
-                            "clflush size     :\n"
-                            "cache_alignment  :\n"
-                            "address sizes    :\n"
-                            "power management :\n",
-                            i, i, i, process->system->numContexts());
-    }
-
-    return tmpfile;
+    return csprintf("0-%d\n",
+                    tc->getSystemPtr()->numContexts() - 1);
 }

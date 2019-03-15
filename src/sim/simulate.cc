@@ -99,12 +99,9 @@ simulate(Tick num_cycles)
         }
 
         threads_initialized = true;
-
-        // in case of reaching the max simulated tick,
-        // we return exit code -1 to inform this timeout
         simulate_limit_event =
             new GlobalSimLoopExitEvent(mainEventQueue[0]->getCurTick(),
-                                       "simulate() limit reached", -1);
+                                       "simulate() limit reached", 0);
     }
 
     inform("Entering event queue @ %d.  Starting simulation...\n", curTick());

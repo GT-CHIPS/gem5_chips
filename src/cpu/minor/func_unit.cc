@@ -121,10 +121,8 @@ FUPipeline::FUPipeline(const std::string &name, const MinorFU &description_,
      * Issue latencies are associated with the pipeline as a whole,
      * rather than instruction classes in Minor */
 
-    /* All pipelines should be able to execute No_OpClass instructions
-     * as well as RoCC instructions */
+    /* All pipelines should be able to execute No_OpClass instructions */
     addCapability(No_OpClass, description.opLat, 1);
-    addCapability(Accelerator, description.opLat, 1);
 
     /* Add the capabilities listed in the MinorFU for this functional unit */
     for (unsigned int i = 0; i < description.opClasses->opClasses.size();

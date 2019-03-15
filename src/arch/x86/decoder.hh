@@ -222,15 +222,16 @@ class Decoder
   protected:
     /// Caching for decoded instruction objects.
 
-    typedef MiscReg CacheKey;
+    typedef RegVal CacheKey;
 
     typedef DecodeCache::AddrMap<Decoder::InstBytes> DecodePages;
     DecodePages *decodePages;
     typedef std::unordered_map<CacheKey, DecodePages *> AddrCacheMap;
     AddrCacheMap addrCacheMap;
 
-    DecodeCache::InstMap *instMap;
-    typedef std::unordered_map<CacheKey, DecodeCache::InstMap *> InstCacheMap;
+    DecodeCache::InstMap<ExtMachInst> *instMap;
+    typedef std::unordered_map<
+            CacheKey, DecodeCache::InstMap<ExtMachInst> *> InstCacheMap;
     static InstCacheMap instCacheMap;
 
   public:
@@ -238,7 +239,7 @@ class Decoder
         outOfBytes(true), instDone(false),
         state(ResetState)
     {
-        memset(&emi, 0, sizeof(emi));
+        emi.reset();
         mode = LongMode;
         submode = SixtyFourBitMode;
         emi.mode.mode = mode;
@@ -277,7 +278,7 @@ class Decoder
         if (imIter != instCacheMap.end()) {
             instMap = imIter->second;
         } else {
-            instMap = new DecodeCache::InstMap;
+            instMap = new DecodeCache::InstMap<ExtMachInst>;
             instCacheMap[m5Reg] = instMap;
         }
     }

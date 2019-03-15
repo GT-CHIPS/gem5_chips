@@ -195,12 +195,6 @@ Pipeline::getDataPort()
     return execute.getDcachePort();
 }
 
-MasterPort &
-Pipeline::getRoccPort()
-{
-    return execute.getRoccPort();
-}
-
 void
 Pipeline::wakeupFetch(ThreadID tid)
 {

@@ -85,7 +85,7 @@ class MinorCPU : public BaseCPU
 
     /** An event that wakes up the pipeline when a thread context is
      * activated */
-    EventFunctionWrapper *pipelineStartupEvent;
+    EventFunctionWrapper pipelineStartupEvent;
 
     /** List of threads that are ready to wake up and run */
     std::vector<ThreadID> readyThreads;
@@ -125,13 +125,6 @@ class MinorCPU : public BaseCPU
 
     /** Return a reference to the instruction port. */
     MasterPort &getInstPort() override;
-
-    /** Return a reference to the rocc port. */
-    MasterPort &getRoccPort();
-
-    /** Override getMasterPort */
-    BaseMasterPort &getMasterPort(const std::string &if_name,
-                                  PortID idx = InvalidPortID) override;
 
   public:
     MinorCPU(MinorCPUParams *params);

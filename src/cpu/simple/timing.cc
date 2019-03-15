@@ -261,7 +261,7 @@ TimingSimpleCPU::handleReadPacket(PacketPtr pkt)
     SimpleExecContext &t_info = *threadInfo[curThread];
     SimpleThread* thread = t_info.thread;
 
-    RequestPtr req = pkt->req;
+    const RequestPtr &req = pkt->req;
 
     // We're about the issues a locked load, so tell the monitor
     // to start caring about this address
@@ -285,7 +285,7 @@ TimingSimpleCPU::handleReadPacket(PacketPtr pkt)
 }
 
 void
-TimingSimpleCPU::sendData(RequestPtr req, uint8_t *data, uint64_t *res,
+TimingSimpleCPU::sendData(const RequestPtr &req, uint8_t *data, uint64_t *res,
                           bool read)
 {
     SimpleExecContext &t_info = *threadInfo[curThread];
@@ -322,8 +322,8 @@ TimingSimpleCPU::sendData(RequestPtr req, uint8_t *data, uint64_t *res,
 }
 
 void
-TimingSimpleCPU::sendSplitData(RequestPtr req1, RequestPtr req2,
-                               RequestPtr req, uint8_t *data, bool read)
+TimingSimpleCPU::sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
+                               const RequestPtr &req, uint8_t *data, bool read)
 {
     PacketPtr pkt1, pkt2;
     buildSplitPacket(pkt1, pkt2, req1, req2, req, data, read);
@@ -378,14 +378,14 @@ TimingSimpleCPU::translationFault(const Fault &fault)
 }
 
 PacketPtr
-TimingSimpleCPU::buildPacket(RequestPtr req, bool read)
+TimingSimpleCPU::buildPacket(const RequestPtr &req, bool read)
 {
     return read ? Packet::createRead(req) : Packet::createWrite(req);
 }
 
 void
 TimingSimpleCPU::buildSplitPacket(PacketPtr &pkt1, PacketPtr &pkt2,
-        RequestPtr req1, RequestPtr req2, RequestPtr req,
+        const RequestPtr &req1, const RequestPtr &req2, const RequestPtr &req,
         uint8_t *data, bool read)
 {
     pkt1 = pkt2 = NULL;
@@ -416,14 +416,6 @@ TimingSimpleCPU::buildSplitPacket(PacketPtr &pkt1, PacketPtr &pkt2,
 }
 
 Fault
-TimingSimpleCPU::readMem(Addr addr, uint8_t *data,
-                         unsigned size, Request::Flags flags)
-{
-    panic("readMem() is for atomic accesses, and should "
-          "never be called on TimingSimpleCPU.\n");
-}
-
-Fault
 TimingSimpleCPU::initiateMemRead(Addr addr, unsigned size,
                                  Request::Flags flags)
 {
@@ -439,8 +431,9 @@ TimingSimpleCPU::initiateMemRead(Addr addr, unsigned size,
     if (traceData)
         traceData->setMem(addr, size, flags);
 
-    RequestPtr req = new Request(asid, addr, size, flags, dataMasterId(), pc,
-                                 thread->contextId());
+    RequestPtr req = std::make_shared<Request>(
+        asid, addr, size, flags, dataMasterId(), pc,
+        thread->contextId());
 
     req->taskId(taskId());
 
@@ -480,7 +473,7 @@ TimingSimpleCPU::handleWritePacket()
     SimpleExecContext &t_info = *threadInfo[curThread];
     SimpleThread* thread = t_info.thread;
 
-    RequestPtr req = dcache_pkt->req;
+    const RequestPtr &req = dcache_pkt->req;
     if (req->isMmappedIpr()) {
         Cycles delay = TheISA::handleIprWrite(thread->getTC(), dcache_pkt);
         new IprEvent(dcache_pkt, this, clockEdge(delay));
@@ -520,8 +513,9 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
     if (traceData)
         traceData->setMem(addr, size, flags);
 
-    RequestPtr req = new Request(asid, addr, size, flags, dataMasterId(), pc,
-                                 thread->contextId());
+    RequestPtr req = std::make_shared<Request>(
+        asid, addr, size, flags, dataMasterId(), pc,
+        thread->contextId());
 
     req->taskId(taskId());
 
@@ -556,14 +550,6 @@ TimingSimpleCPU::writeMem(uint8_t *data, unsigned size,
 }
 
 Fault
-TimingSimpleCPU::amoMem(Addr addr, uint8_t* data, unsigned size,
-                        Request::Flags flags, AtomicOpFunctor *amo_op)
-{
-    panic("amoMem() is for atomic accesses, and should "
-          "never be called on TimingSimpleCPU.\n");
-}
-
-Fault
 TimingSimpleCPU::initiateMemAMO(Addr addr, unsigned size,
                                 Request::Flags flags,
                                 AtomicOpFunctor *amo_op)
@@ -580,8 +566,8 @@ TimingSimpleCPU::initiateMemAMO(Addr addr, unsigned size,
     if (traceData)
         traceData->setMem(addr, size, flags);
 
-    RequestPtr req = new Request(asid, addr, size, flags, dataMasterId(),
-                                 pc, thread->contextId(), amo_op);
+    RequestPtr req = make_shared<Request>(asid, addr, size, flags,
+                            dataMasterId(), pc, thread->contextId(), amo_op);
 
     assert(req->hasAtomicOpFunctor());
 
@@ -596,7 +582,9 @@ TimingSimpleCPU::initiateMemAMO(Addr addr, unsigned size,
     // accesses that cross cache-line boundaries, the cache needs to be
     // modified to support locking both cache lines to guarantee the
     // atomicity.
-    assert(split_addr <= addr);
+    if (split_addr > addr) {
+        panic("AMO requests should not access across a cache line boundary\n");
+    }
 
     _status = DTBWaitResponse;
 
@@ -675,7 +663,7 @@ TimingSimpleCPU::fetch()
 
     if (needToFetch) {
         _status = BaseSimpleCPU::Running;
-        Request *ifetch_req = new Request();
+        RequestPtr ifetch_req = std::make_shared<Request>();
         ifetch_req->taskId(taskId());
         ifetch_req->setContext(thread->contextId());
         setupFetchRequest(ifetch_req);
@@ -693,7 +681,7 @@ TimingSimpleCPU::fetch()
 
 
 void
-TimingSimpleCPU::sendFetch(const Fault &fault, RequestPtr req,
+TimingSimpleCPU::sendFetch(const Fault &fault, const RequestPtr &req,
                            ThreadContext *tc)
 {
     if (fault == NoFault) {
@@ -714,7 +702,6 @@ TimingSimpleCPU::sendFetch(const Fault &fault, RequestPtr req,
         }
     } else {
         DPRINTF(SimpleCPU, "Translation of addr %#x faulted\n", req->getVaddr());
-        delete req;
         // fetch fault: advance directly to next instruction (fault handler)
         _status = BaseSimpleCPU::Running;
         advanceInst(fault);
@@ -837,7 +824,6 @@ TimingSimpleCPU::completeIfetch(PacketPtr pkt)
     }
 
     if (pkt) {
-        delete pkt->req;
         delete pkt;
     }
 }
@@ -893,7 +879,6 @@ TimingSimpleCPU::completeDataAccess(PacketPtr pkt)
         SplitFragmentSenderState * send_state =
             dynamic_cast<SplitFragmentSenderState *>(pkt->senderState);
         assert(send_state);
-        delete pkt->req;
         delete pkt;
         PacketPtr big_pkt = send_state->bigPkt;
         delete send_state;
@@ -928,7 +913,6 @@ TimingSimpleCPU::completeDataAccess(PacketPtr pkt)
         traceData = NULL;
     }
 
-    delete pkt->req;
     delete pkt;
 
     postExecute();

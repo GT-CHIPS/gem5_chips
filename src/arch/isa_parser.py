@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016 ARM Limited
+# Copyright (c) 2014, 2016, 2019 ARM Limited
 # All rights reserved
 #
 # The license below extends only to copyright in the software and shall
@@ -39,7 +39,7 @@
 #
 # Authors: Steve Reinhardt
 
-from __future__ import with_statement
+from __future__ import with_statement, print_function
 import os
 import sys
 import re
@@ -142,7 +142,7 @@ class Template(object):
             del myDict['snippets']
 
             snippetLabels = [l for l in labelRE.findall(template)
-                             if d.snippets.has_key(l)]
+                             if l in d.snippets]
 
             snippets = dict([(s, self.parser.mungeSnippet(d.snippets[s]))
                              for s in snippetLabels])
@@ -490,6 +490,9 @@ class Operand(object):
     def isVecElem(self):
         return 0
 
+    def isVecPredReg(self):
+        return 0
+
     def isPCState(self):
         return 0
 
@@ -617,35 +620,37 @@ class FloatRegOperand(Operand):
         return c_src + c_dest
 
     def makeRead(self, predRead):
-        bit_select = 0
-        if (self.ctype == 'float' or self.ctype == 'double'):
-            func = 'readFloatRegOperand'
-        else:
-            func = 'readFloatRegOperandBits'
         if self.read_code != None:
-            return self.buildReadCode(func)
+            return self.buildReadCode('readFloatRegOperandBits')
 
         if predRead:
             rindex = '_sourceIndex++'
         else:
             rindex = '%d' % self.src_reg_idx
 
-        return '%s = xc->%s(this, %s);\n' % \
-            (self.base_name, func, rindex)
+        code = 'xc->readFloatRegOperandBits(this, %s)' % rindex
+        if self.ctype == 'float':
+            code = 'bitsToFloat32(%s)' % code
+        elif self.ctype == 'double':
+            code = 'bitsToFloat64(%s)' % code
+        return '%s = %s;\n' % (self.base_name, code)
 
     def makeWrite(self, predWrite):
-        if (self.ctype == 'float' or self.ctype == 'double'):
-            func = 'setFloatRegOperand'
-        else:
-            func = 'setFloatRegOperandBits'
         if self.write_code != None:
-            return self.buildWriteCode(func)
+            return self.buildWriteCode('setFloatRegOperandBits')
 
         if predWrite:
             wp = '_destIndex++'
         else:
             wp = '%d' % self.dest_reg_idx
-        wp = 'xc->%s(this, %s, final_val);' % (func, wp)
+
+        val = 'final_val'
+        if self.ctype == 'float':
+            val = 'floatToBits32(%s)' % val
+        elif self.ctype == 'double':
+            val = 'floatToBits64(%s)' % val
+
+        wp = 'xc->setFloatRegOperandBits(this, %s, %s);' % (wp, val)
 
         wb = '''
         {
@@ -793,10 +798,9 @@ class VecRegOperand(Operand):
 
         wb = '''
         if (traceData) {
-            warn_once("Vectors not supported yet in tracedata");
-            /*traceData->setData(final_val);*/
+            traceData->setData(tmp_d%d);
         }
-        '''
+        ''' % self.dest_reg_idx
         return wb
 
     def finalize(self, predRead, predWrite):
@@ -805,7 +809,7 @@ class VecRegOperand(Operand):
             self.op_rd = self.makeReadW(predWrite) + self.op_rd
 
 class VecElemOperand(Operand):
-    reg_class = 'VectorElemClass'
+    reg_class = 'VecElemClass'
 
     def isReg(self):
         return 1
@@ -824,8 +828,6 @@ class VecElemOperand(Operand):
         c_dest = ''
 
         numAccessNeeded = 1
-        regId = 'RegId(%s, %s * numVecElemPerVecReg + elemIdx, %s)' % \
-                (self.reg_class, self.reg_spec)
 
         if self.is_src:
             c_src = ('\n\t_srcRegIdx[_numSrcRegs++] = RegId(%s, %s, %s);' %
@@ -838,16 +840,109 @@ class VecElemOperand(Operand):
         return c_src + c_dest
 
     def makeRead(self, predRead):
-        c_read = ('\n/* Elem is kept inside the operand description */' +
-                  '\n\tVecElem %s = xc->readVecElemOperand(this, %d);' %
-                  (self.base_name, self.src_reg_idx))
-        return c_read
+        c_read = 'xc->readVecElemOperand(this, %d)' % self.src_reg_idx
+
+        if self.ctype == 'float':
+            c_read = 'bitsToFloat32(%s)' % c_read
+        elif self.ctype == 'double':
+            c_read = 'bitsToFloat64(%s)' % c_read
+
+        return '\n\t%s %s = %s;\n' % (self.ctype, self.base_name, c_read)
 
     def makeWrite(self, predWrite):
-        c_write = ('\n/* Elem is kept inside the operand description */' +
-                   '\n\txc->setVecElemOperand(this, %d, %s);' %
-                   (self.dest_reg_idx, self.base_name))
+        if self.ctype == 'float':
+            c_write = 'floatToBits32(%s)' % self.base_name
+        elif self.ctype == 'double':
+            c_write = 'floatToBits64(%s)' % self.base_name
+        else:
+            c_write = self.base_name
+
+        c_write = ('\n\txc->setVecElemOperand(this, %d, %s);' %
+                  (self.dest_reg_idx, c_write))
+
         return c_write
+
+class VecPredRegOperand(Operand):
+    reg_class = 'VecPredRegClass'
+
+    def __init__(self, parser, full_name, ext, is_src, is_dest):
+        Operand.__init__(self, parser, full_name, ext, is_src, is_dest)
+        self.parser = parser
+
+    def isReg(self):
+        return 1
+
+    def isVecPredReg(self):
+        return 1
+
+    def makeDecl(self):
+        return ''
+
+    def makeConstructor(self, predRead, predWrite):
+        c_src = ''
+        c_dest = ''
+
+        if self.is_src:
+            c_src = src_reg_constructor % (self.reg_class, self.reg_spec)
+
+        if self.is_dest:
+            c_dest = dst_reg_constructor % (self.reg_class, self.reg_spec)
+            c_dest += '\n\t_numVecPredDestRegs++;'
+
+        return c_src + c_dest
+
+    def makeRead(self, predRead):
+        func = 'readVecPredRegOperand'
+        if self.read_code != None:
+            return self.buildReadCode(func)
+
+        if predRead:
+            rindex = '_sourceIndex++'
+        else:
+            rindex = '%d' % self.src_reg_idx
+
+        c_read =  '\t\t%s& tmp_s%s = xc->%s(this, %s);\n' % (
+                'const TheISA::VecPredRegContainer', rindex, func, rindex)
+        if self.ext:
+            c_read += '\t\tauto %s = tmp_s%s.as<%s>();\n' % (
+                    self.base_name, rindex,
+                    self.parser.operandTypeMap[self.ext])
+        return c_read
+
+    def makeReadW(self, predWrite):
+        func = 'getWritableVecPredRegOperand'
+        if self.read_code != None:
+            return self.buildReadCode(func)
+
+        if predWrite:
+            rindex = '_destIndex++'
+        else:
+            rindex = '%d' % self.dest_reg_idx
+
+        c_readw = '\t\t%s& tmp_d%s = xc->%s(this, %s);\n' % (
+                'TheISA::VecPredRegContainer', rindex, func, rindex)
+        if self.ext:
+            c_readw += '\t\tauto %s = tmp_d%s.as<%s>();\n' % (
+                    self.base_name, rindex,
+                    self.parser.operandTypeMap[self.ext])
+        return c_readw
+
+    def makeWrite(self, predWrite):
+        func = 'setVecPredRegOperand'
+        if self.write_code != None:
+            return self.buildWriteCode(func)
+
+        wb = '''
+        if (traceData) {
+            traceData->setData(tmp_d%d);
+        }
+        ''' % self.dest_reg_idx
+        return wb
+
+    def finalize(self, predRead, predWrite):
+        super(VecPredRegOperand, self).finalize(predRead, predWrite)
+        if self.is_dest:
+            self.op_rd = self.makeReadW(predWrite) + self.op_rd
 
 class CCRegOperand(Operand):
     reg_class = 'CCRegClass'
@@ -1102,6 +1197,7 @@ class OperandList(object):
         self.numFPDestRegs = 0
         self.numIntDestRegs = 0
         self.numVecDestRegs = 0
+        self.numVecPredDestRegs = 0
         self.numCCDestRegs = 0
         self.numMiscDestRegs = 0
         self.memOperand = None
@@ -1125,6 +1221,8 @@ class OperandList(object):
                         self.numIntDestRegs += 1
                     elif op_desc.isVecReg():
                         self.numVecDestRegs += 1
+                    elif op_desc.isVecPredReg():
+                        self.numVecPredDestRegs += 1
                     elif op_desc.isCCReg():
                         self.numCCDestRegs += 1
                     elif op_desc.isControlReg():
@@ -1333,6 +1431,7 @@ class InstObjParams(object):
         header += '\n\t_numFPDestRegs = 0;'
         header += '\n\t_numVecDestRegs = 0;'
         header += '\n\t_numVecElemDestRegs = 0;'
+        header += '\n\t_numVecPredDestRegs = 0;'
         header += '\n\t_numIntDestRegs = 0;'
         header += '\n\t_numCCDestRegs = 0;'
 
@@ -1379,8 +1478,6 @@ class InstObjParams(object):
                 self.op_class = 'FloatAddOp'
             elif 'IsVector' in self.flags:
                 self.op_class = 'SimdAddOp'
-            elif 'IsRoCC' in self.flags:
-                self.op_class = 'AcceleratorOp'
             else:
                 self.op_class = 'IntAluOp'
 
@@ -1539,11 +1636,11 @@ class ISAParser(Grammar):
         # select the different chunks. If no 'split' directives are used,
         # the cpp emissions have no effect.
         if re.search('-ns.cc.inc$', filename):
-            print >>f, '#if !defined(__SPLIT) || (__SPLIT == 1)'
+            print('#if !defined(__SPLIT) || (__SPLIT == 1)', file=f)
             self.splits[f] = 1
         # ensure requisite #include's
         elif filename == 'decoder-g.hh.inc':
-            print >>f, '#include "base/bitfield.hh"'
+            print('#include "base/bitfield.hh"', file=f)
 
         return f
 
@@ -1567,6 +1664,9 @@ class ISAParser(Grammar):
         # decoder method - cannot be split
         file = 'decoder.cc'
         with self.open(file) as f:
+            fn = 'base/compiler.hh'
+            f.write('#include "%s"\n' % fn)
+
             fn = 'decoder-g.cc.inc'
             assert(fn in self.files)
             f.write('#include "%s"\n' % fn)
@@ -1598,11 +1698,11 @@ class ISAParser(Grammar):
 
                 fn = 'decoder-ns.cc.inc'
                 assert(fn in self.files)
-                print >>f, 'namespace %s {' % self.namespace
+                print('namespace %s {' % self.namespace, file=f)
                 if splits > 1:
-                    print >>f, '#define __SPLIT %u' % i
-                print >>f, '#include "%s"' % fn
-                print >>f, '}'
+                    print('#define __SPLIT %u' % i, file=f)
+                print('#include "%s"' % fn, file=f)
+                print('}', file=f)
 
         # instruction execution
         splits = self.splits[self.get_file('exec')]
@@ -1619,11 +1719,11 @@ class ISAParser(Grammar):
 
                 fn = 'exec-ns.cc.inc'
                 assert(fn in self.files)
-                print >>f, 'namespace %s {' % self.namespace
+                print('namespace %s {' % self.namespace, file=f)
                 if splits > 1:
-                    print >>f, '#define __SPLIT %u' % i
-                print >>f, '#include "%s"' % fn
-                print >>f, '}'
+                    print('#define __SPLIT %u' % i, file=f)
+                print('#include "%s"' % fn, file=f)
+                print('}', file=f)
 
         # max_inst_regs.hh
         self.update('max_inst_regs.hh',
@@ -1936,6 +2036,7 @@ del wrap
         try:
             exec split_setup+fixPythonIndentation(t[2]) in self.exportContext
         except Exception, exc:
+            traceback.print_exc(file=sys.stdout)
             if debug:
                 raise
             error(t.lineno(1), 'In global let block: %s' % exc)
@@ -2021,7 +2122,7 @@ del wrap
     def p_def_template(self, t):
         'def_template : DEF TEMPLATE ID CODELIT SEMI'
         if t[3] in self.templateMap:
-            print "warning: template %s already defined" % t[3]
+            print("warning: template %s already defined" % t[3])
         self.templateMap[t[3]] = Template(self, t[4])
 
     # An instruction format definition looks like
@@ -2208,7 +2309,8 @@ StaticInstPtr
         codeObj = t[3]
         # just wrap the decoding code from the block as a case in the
         # outer switch statement.
-        codeObj.wrap_decode_block('\n%s\n' % ''.join(case_list))
+        codeObj.wrap_decode_block('\n%s\n' % ''.join(case_list),
+                                  'M5_UNREACHABLE;\n')
         codeObj.has_decode_default = (case_list == ['default:'])
         t[0] = codeObj
 
@@ -2606,9 +2708,9 @@ StaticInstPtr
         try:
             self._parse_isa_desc(*args, **kwargs)
         except ISAParserError, e:
-            print backtrace(self.fileNameStack)
-            print "At %s:" % e.lineno
-            print e
+            print(backtrace(self.fileNameStack))
+            print("At %s:" % e.lineno)
+            print(e)
             sys.exit(1)
 
 # Called as script: get args from command line.

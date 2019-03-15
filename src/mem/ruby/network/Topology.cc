@@ -52,7 +52,8 @@ Topology::Topology(uint32_t num_nodes, uint32_t num_routers,
                    uint32_t num_vnets,
                    const vector<BasicExtLink *> &ext_links,
                    const vector<BasicIntLink *> &int_links)
-    : m_nodes(num_nodes), m_number_of_switches(num_routers),
+    : m_nodes(num_nodes),
+      m_number_of_switches(num_routers),
       m_vnets(num_vnets),
       m_ext_link_vector(ext_links), m_int_link_vector(int_links)
 {

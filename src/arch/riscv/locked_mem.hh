@@ -85,7 +85,7 @@ handleLockedSnoop(XC *xc, PacketPtr pkt, Addr cacheBlockMask)
 
 
 template <class XC> inline void
-handleLockedRead(XC *xc, Request *req)
+handleLockedRead(XC *xc, const RequestPtr &req)
 {
     std::stack<Addr>& locked_addr_stack = locked_addrs[xc->contextId()];
 
@@ -99,7 +99,7 @@ handleLockedSnoopHit(XC *xc)
 {}
 
 template <class XC> inline bool
-handleLockedWrite(XC *xc, Request *req, Addr cacheBlockMask)
+handleLockedWrite(XC *xc, const RequestPtr &req, Addr cacheBlockMask)
 {
     std::stack<Addr>& locked_addr_stack = locked_addrs[xc->contextId()];
 
@@ -137,9 +137,7 @@ template <class XC>
 inline void
 globalClearExclusive(XC *xc)
 {
-// @tuan: comment this out since we rely on futex system calls to wake up a
-// thread context instead of the locked address list in abstract_mem.
-//    xc->getCpuPtr()->wakeup(xc->threadId());
+    xc->getCpuPtr()->wakeup(xc->threadId());
 }
 
 } // namespace RiscvISA

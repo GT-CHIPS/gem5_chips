@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016 ARM Limited
+ * Copyright (c) 2014, 2016-2017 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -53,9 +53,6 @@
 #include "cpu/static_inst_fwd.hh"
 #include "cpu/translation.hh"
 #include "mem/request.hh"
-#include "rocc/packets.hh"
-#include "sim/pseudo_inst.hh"
-#include "sim/stat_control.hh"
 
 /**
  * The ExecContext is an abstract base class the provides the
@@ -75,15 +72,11 @@
  */
 class ExecContext {
   public:
-    typedef TheISA::IntReg IntReg;
     typedef TheISA::PCState PCState;
-    typedef TheISA::FloatReg FloatReg;
-    typedef TheISA::FloatRegBits FloatRegBits;
-    typedef TheISA::MiscReg MiscReg;
 
-    typedef TheISA::CCReg CCReg;
     using VecRegContainer = TheISA::VecRegContainer;
     using VecElem = TheISA::VecElem;
+    using VecPredRegContainer = TheISA::VecPredRegContainer;
 
   public:
     /**
@@ -93,11 +86,11 @@ class ExecContext {
      */
 
     /** Reads an integer register. */
-    virtual IntReg readIntRegOperand(const StaticInst *si, int idx) = 0;
+    virtual RegVal readIntRegOperand(const StaticInst *si, int idx) = 0;
 
     /** Sets an integer register to a value. */
     virtual void setIntRegOperand(const StaticInst *si,
-                                  int idx, IntReg val) = 0;
+                                  int idx, RegVal val) = 0;
 
     /** @} */
 
@@ -107,22 +100,14 @@ class ExecContext {
      * @name Floating Point Register Interfaces
      */
 
-    /** Reads a floating point register of single register width. */
-    virtual FloatReg readFloatRegOperand(const StaticInst *si, int idx) = 0;
-
     /** Reads a floating point register in its binary format, instead
      * of by value. */
-    virtual FloatRegBits readFloatRegOperandBits(const StaticInst *si,
-                                                 int idx) = 0;
-
-    /** Sets a floating point register of single width to a value. */
-    virtual void setFloatRegOperand(const StaticInst *si,
-                                    int idx, FloatReg val) = 0;
+    virtual RegVal readFloatRegOperandBits(const StaticInst *si, int idx) = 0;
 
     /** Sets the bits of a floating point register of single width
      * to a binary value. */
     virtual void setFloatRegOperandBits(const StaticInst *si,
-                                        int idx, FloatRegBits val) = 0;
+                                        int idx, RegVal val) = 0;
 
     /** @} */
 
@@ -183,106 +168,50 @@ class ExecContext {
                                    const VecElem val) = 0;
     /** @} */
 
+    /** Predicate registers interface. */
+    /** @{ */
+    /** Reads source predicate register operand. */
+    virtual const VecPredRegContainer&
+    readVecPredRegOperand(const StaticInst *si, int idx) const = 0;
+
+    /** Gets destination predicate register operand for modification. */
+    virtual VecPredRegContainer&
+    getWritableVecPredRegOperand(const StaticInst *si, int idx) = 0;
+
+    /** Sets a destination predicate register operand to a value. */
+    virtual void
+    setVecPredRegOperand(const StaticInst *si, int idx,
+                         const VecPredRegContainer& val) = 0;
+    /** @} */
+
     /**
      * @{
      * @name Condition Code Registers
      */
-    virtual CCReg readCCRegOperand(const StaticInst *si, int idx) = 0;
-    virtual void setCCRegOperand(const StaticInst *si, int idx, CCReg val) = 0;
+    virtual RegVal readCCRegOperand(const StaticInst *si, int idx) = 0;
+    virtual void setCCRegOperand(
+            const StaticInst *si, int idx, RegVal val) = 0;
     /** @} */
 
     /**
      * @{
      * @name Misc Register Interfaces
      */
-    virtual MiscReg readMiscRegOperand(const StaticInst *si, int idx) = 0;
+    virtual RegVal readMiscRegOperand(const StaticInst *si, int idx) = 0;
     virtual void setMiscRegOperand(const StaticInst *si,
-                                   int idx, const MiscReg &val) = 0;
+                                   int idx, RegVal val) = 0;
 
     /**
      * Reads a miscellaneous register, handling any architectural
      * side effects due to reading that register.
      */
-    virtual MiscReg readMiscReg(int misc_reg) = 0;
+    virtual RegVal readMiscReg(int misc_reg) = 0;
 
     /**
      * Sets a miscellaneous register, handling any architectural
      * side effects due to writing that register.
      */
-    virtual void setMiscReg(int misc_reg, const MiscReg &val) = 0;
-
-    /**
-     * Handle necessary operations associated with a given misc register
-     */
-    virtual void handleMiscRegOp(int misc_reg,
-                                 MiscReg old_val,
-                                 const MiscReg &val)
-    {
-#if THE_ISA == RISCV_ISA
-        switch (misc_reg) {
-            // Turn on/off gem5 stats counters
-            case TheISA::MISCREG_STATS_EN:
-                if (old_val == 0 && val == 1) {
-                    // for BRG activity trace
-                    std::cout << "STATS: ON { "
-                              << "\"num_cpus\": "
-                              << tcBase()->getSystemPtr()->numContexts()
-                              << ", "
-                              << "\"tick\": "
-                              << curTick()
-                              << ", "
-                              << "\"cycle\": "
-                              << tcBase()->getCpuPtr()->curCycle()
-                              << " }" << std::endl;
-
-                    // schedule a stat event to reset all stats but not dump
-                    // them (dump = false, reset = true)
-                    Stats::schedStatEvent(false, true);
-
-                    // entering a timing region, we need to switch from
-                    // a CPU model used to warm up to a detailed timing model.
-                    if (tcBase()->getSystemPtr()->brg_fast_forward)
-                        PseudoInst::switchcpu(tcBase());
-                } else if (old_val == 1 && val == 0){
-                    // for BRG activity trace
-                    std::cout << "STATS: OFF { "
-                              << "\"tick\": "
-                              << curTick()
-                              << ", "
-                              << "\"cycle\": "
-                              << tcBase()->getCpuPtr()->curCycle()
-                              << " }" << std::endl;
-
-                    // schedule a stat event to dump all stats but not reset
-                    // them (dump = true, reset = false)
-                    Stats::schedStatEvent(true, false);
-
-                    // exiting a timing region, we need to switch from
-                    // the detailed timing model to an atomic CPU model.
-                    if (tcBase()->getSystemPtr()->brg_fast_forward)
-                        PseudoInst::switchcpu(tcBase());
-                }
-
-                break;
-
-            case TheISA::MISCREG_TOGGLE0 ... TheISA::MISCREG_TOGGLE31:
-                // only print activity trace if at least one bit in the CSR
-                // is toggled
-                if (old_val ^ val) {
-                    tcBase()->getCpuPtr()->printActivityTrace(misc_reg, val);
-                }
-
-                break;
-
-            case TheISA::MISCREG_VALUE0 ... TheISA::MISCREG_VALUE31:
-
-                break;
-
-            default:  // do nothing
-                break;
-        }
-#endif
-    }
+    virtual void setMiscReg(int misc_reg, RegVal val) = 0;
 
     /** @} */
 
@@ -367,36 +296,6 @@ class ExecContext {
 
     /**
      * @{
-     * @name RoCC Interface
-     */
-
-    /**
-     * Send a RoCC request.  Must be overridden for exec contexts that
-     * RoCC interface. Not pure virtual since exec contexts that do
-     * _not_ support RoCC interface need not override (though in that
-     * case this function should never be called).
-     */
-    virtual Fault sendRoccRequest(RoccCmdPtr req)
-    {
-        panic("ExecContext::sendRoccRequest() should be overridden\n");
-    }
-
-    /**
-     * Parse a RoCC response.  Must be overridden for exec contexts that
-     * RoCC interface. Not pure virtual since exec contexts that do
-     * _not_ support RoCC interface need not override (though in that
-     * case this function should never be called).
-     */
-    virtual Fault parseRoccResponse(RoccRespPtr resp, bool &rd_x,
-                                    uint64_t &rd_id,  uint64_t &rd_data)
-    {
-        panic("ExecContext::parseRoccResponse() should be overridden\n");
-    }
-
-    /** @} */
-
-    /**
-     * @{
      * @name SysCall Emulation Interfaces
      */
 
@@ -434,7 +333,7 @@ class ExecContext {
      * @name ARM-Specific Interfaces
      */
 
-    virtual bool readPredicate() = 0;
+    virtual bool readPredicate() const = 0;
     virtual void setPredicate(bool val) = 0;
 
     /** @} */
@@ -461,10 +360,10 @@ class ExecContext {
      */
 
 #if THE_ISA == MIPS_ISA
-    virtual MiscReg readRegOtherThread(const RegId& reg,
-                                       ThreadID tid = InvalidThreadID) = 0;
-    virtual void setRegOtherThread(const RegId& reg, MiscReg val,
-                                   ThreadID tid = InvalidThreadID) = 0;
+    virtual RegVal readRegOtherThread(const RegId &reg,
+                                       ThreadID tid=InvalidThreadID) = 0;
+    virtual void setRegOtherThread(const RegId& reg, RegVal val,
+                                   ThreadID tid=InvalidThreadID) = 0;
 #endif
 
     /** @} */

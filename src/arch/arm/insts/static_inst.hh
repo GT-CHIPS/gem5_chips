@@ -179,7 +179,7 @@ class ArmStaticInst : public StaticInst
     void printExtendOperand(bool firstOperand, std::ostream &os,
                             IntRegIndex rm, ArmExtendType type,
                             int64_t shiftAmt) const;
-
+    void printPFflags(std::ostream &os, int flag) const;
 
     void printDataInst(std::ostream &os, bool withImm) const;
     void printDataInst(std::ostream &os, bool withImm, bool immShift, bool s,
@@ -188,12 +188,13 @@ class ArmStaticInst : public StaticInst
                        uint64_t imm) const;
 
     void
-    advancePC(PCState &pcState) const
+    advancePC(PCState &pcState) const override
     {
         pcState.advance();
     }
 
-    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+    std::string generateDisassembly(
+            Addr pc, const SymbolTable *symtab) const override;
 
     static inline uint32_t
     cpsrWriteByInstr(CPSR cpsr, uint32_t val, SCR scr, NSACR nsacr,
@@ -229,7 +230,7 @@ class ArmStaticInst : public StaticInst
                 // Now check the new mode is allowed
                 OperatingMode newMode = (OperatingMode) (val & mask(5));
                 OperatingMode oldMode = (OperatingMode)(uint32_t)cpsr.mode;
-                if (!badMode(newMode)) {
+                if (!badMode(tc, newMode)) {
                     bool validModeChange = true;
                     // Check for attempts to enter modes only permitted in
                     // Secure state from Non-secure state. These are Monitor
@@ -370,6 +371,14 @@ class ArmStaticInst : public StaticInst
                        ExceptionLevel targetEL, bool isWfe) const;
 
     /**
+     * Trigger a Software Breakpoint.
+     *
+     * See aarch32/exceptions/debug/AArch32.SoftwareBreakpoint in the
+     * ARM ARM psueodcode library.
+     */
+    Fault softwareBreakpoint32(ExecContext *xc, uint16_t imm) const;
+
+    /**
      * Trap an access to Advanced SIMD or FP registers due to access
      * control bits.
      *
@@ -504,6 +513,12 @@ class ArmStaticInst : public StaticInst
     encoding() const
     {
         return static_cast<MachInst>(machInst & (mask(instSize() * 8)));
+    }
+
+    size_t
+    asBytes(void *buf, size_t max_size) override
+    {
+        return simpleAsBytes(buf, max_size, machInst);
     }
 };
 }

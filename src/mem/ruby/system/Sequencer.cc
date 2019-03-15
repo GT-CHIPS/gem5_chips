@@ -481,33 +481,36 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
             (type == RubyRequestType_RMW_Read) ||
             (type == RubyRequestType_Locked_RMW_Read) ||
             (type == RubyRequestType_Load_Linked)) {
-            memcpy(pkt->getPtr<uint8_t>(),
-                   data.getData(getOffset(request_address), pkt->getSize()),
-                   pkt->getSize());
+            pkt->setData(
+                data.getData(getOffset(request_address), pkt->getSize()));
             DPRINTF(RubySequencer, "read data %s\n", data);
-        } else if (pkt->req->isSwap() || pkt->isAtomicOp()) {
+        } else if (pkt->req->isSwap()) {
             std::vector<uint8_t> overwrite_val(pkt->getSize());
-            if (pkt->isAtomicOp()) {
-                memcpy(&overwrite_val[0],
-                       data.getData(getOffset(request_address),
-                                    pkt->getSize()),
-                       pkt->getSize());
-                // execute AMO operation on new data
-                (*(pkt->getAtomicOp()))(&overwrite_val[0]);
-            } else {
-                memcpy(&overwrite_val[0], pkt->getConstPtr<uint8_t>(),
-                       pkt->getSize());
-            }
+            pkt->writeData(&overwrite_val[0]);
+            pkt->setData(
+                data.getData(getOffset(request_address), pkt->getSize()));
+            data.setData(&overwrite_val[0],
+                         getOffset(request_address), pkt->getSize());
+            DPRINTF(RubySequencer, "swap data %s\n", data);
+        } else if (pkt->isAtomicOp()) {
+            std::vector<uint8_t> overwrite_val(pkt->getSize());
 
-            // return old value to the packet
-            memcpy(pkt->getPtr<uint8_t>(),
+            // copy cache data into overwrite_val
+            memcpy(&overwrite_val[0],
                    data.getData(getOffset(request_address), pkt->getSize()),
                    pkt->getSize());
+
+            // execute AMO operation on overwrite_val
+            (*(pkt->getAtomicOp()))(&overwrite_val[0]);
+
+            // return cache data to the packet
+            pkt->setData(data.getData(getOffset(request_address),
+                         pkt->getSize()));
+
             // update the cache data to overwrite_val
             data.setData(&overwrite_val[0],
                          getOffset(request_address), pkt->getSize());
-
-            DPRINTF(RubySequencer, "swap data %s\n", data);
+            DPRINTF(RubySequencer, "amo set data %s\n", data);
         } else if (type != RubyRequestType_Store_Conditional || llscSuccess) {
             // Types of stores set the actual data here, apart from
             // failed Store Conditional requests
@@ -534,7 +537,6 @@ Sequencer::hitCallback(SequencerRequest* srequest, DataBlock& data,
     RubySystem *rs = m_ruby_system;
     if (RubySystem::getWarmupEnabled()) {
         assert(pkt->req);
-        delete pkt->req;
         delete pkt;
         rs->m_cache_recorder->enqueueNextFetchRequest();
     } else if (RubySystem::getCooldownEnabled()) {

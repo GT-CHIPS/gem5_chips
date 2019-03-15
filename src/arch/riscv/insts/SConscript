@@ -30,7 +30,6 @@
 Import('*')
 
 if env['TARGET_ISA'] == 'riscv':
-    Source('rocc.cc')
     Source('amo.cc')
     Source('compressed.cc')
     Source('mem.cc')

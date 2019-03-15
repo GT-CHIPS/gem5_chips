@@ -194,9 +194,6 @@ class MinorDynInst : public RefCounted
     /** This instruction is in the LSQ, not a functional unit */
     bool inLSQ;
 
-    /** This instruction is queued in the RoCC interface */
-    bool inRoccInterface;
-
     /** The instruction has been sent to the store buffer */
     bool inStoreBuffer;
 
@@ -229,8 +226,8 @@ class MinorDynInst : public RefCounted
         staticInst(NULL), id(id_), traceData(NULL),
         pc(TheISA::PCState(0)), fault(fault_),
         triedToPredict(false), predictedTaken(false),
-        fuIndex(0), inLSQ(false), inRoccInterface(false),
-        inStoreBuffer(false), canEarlyIssue(false),
+        fuIndex(0), inLSQ(false), inStoreBuffer(false),
+        canEarlyIssue(false),
         instToWaitFor(0), extraCommitDelay(Cycles(0)),
         extraCommitDelayExpr(NULL), minimumCommitCycle(Cycles(0))
     { }
@@ -250,9 +247,6 @@ class MinorDynInst : public RefCounted
 
     /** Is this a real mem ref instruction */
     bool isMemRef() const { return isInst() && staticInst->isMemRef(); }
-
-    /** Is this a real RoCC instruction */
-    bool isRoCC() const { return isInst() && staticInst->isRoCC(); }
 
     /** Is this an instruction that can be executed `for free' and
      *  needn't spend time in an FU */

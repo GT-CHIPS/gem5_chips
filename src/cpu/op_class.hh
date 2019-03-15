@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 ARM Limited
+ * Copyright (c) 2010,2018 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -51,7 +51,6 @@
  */
 using Enums::OpClass;
 using Enums::No_OpClass;
-using Enums::Accelerator;
 
 static const OpClass IntAluOp = Enums::IntAlu;
 static const OpClass IntMultOp = Enums::IntMult;
@@ -84,13 +83,20 @@ static const OpClass SimdFloatMiscOp = Enums::SimdFloatMisc;
 static const OpClass SimdFloatMultOp = Enums::SimdFloatMult;
 static const OpClass SimdFloatMultAccOp = Enums::SimdFloatMultAcc;
 static const OpClass SimdFloatSqrtOp = Enums::SimdFloatSqrt;
+static const OpClass SimdAesOp = Enums::SimdAes;
+static const OpClass SimdAesMixOp = Enums::SimdAesMix;
+static const OpClass SimdSha1HashOp = Enums::SimdSha1Hash;
+static const OpClass SimdSha1Hash2Op = Enums::SimdSha1Hash2;
+static const OpClass SimdSha256HashOp = Enums::SimdSha256Hash;
+static const OpClass SimdSha256Hash2Op = Enums::SimdSha256Hash2;
+static const OpClass SimdShaSigma2Op = Enums::SimdShaSigma2;
+static const OpClass SimdShaSigma3Op = Enums::SimdShaSigma3;
 static const OpClass MemReadOp = Enums::MemRead;
 static const OpClass MemWriteOp = Enums::MemWrite;
 static const OpClass FloatMemReadOp = Enums::FloatMemRead;
 static const OpClass FloatMemWriteOp = Enums::FloatMemWrite;
 static const OpClass IprAccessOp = Enums::IprAccess;
 static const OpClass InstPrefetchOp = Enums::InstPrefetch;
-static const OpClass AcceleratorOp = Enums::Accelerator;
 static const OpClass Num_OpClasses = Enums::Num_OpClass;
 
 #endif // __CPU__OP_CLASS_HH__

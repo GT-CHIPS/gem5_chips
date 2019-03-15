@@ -35,7 +35,6 @@
 
 #include "base/cast.hh"
 #include "base/logging.hh"
-#include "debug/RubyNetwork.hh"
 #include "mem/ruby/network/garnet2.0/InputUnit.hh"
 #include "mem/ruby/network/garnet2.0/Router.hh"
 #include "mem/ruby/slicc_interface/Message.hh"

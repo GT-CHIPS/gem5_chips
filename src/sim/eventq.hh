@@ -714,7 +714,11 @@ class EventQueue
      */
     void checkpointReschedule(Event *event);
 
-    virtual ~EventQueue() { }
+    virtual ~EventQueue()
+    {
+        while (!empty())
+            deschedule(getHead());
+    }
 };
 
 void dumpMainQueue();

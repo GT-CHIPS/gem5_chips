@@ -49,6 +49,7 @@
 
 MinorCPU::MinorCPU(MinorCPUParams *params) :
     BaseCPU(params),
+    pipelineStartupEvent([this]{ wakeupPipeline(); }, name()),
     threadPolicy(params->threadPolicy)
 {
     /* This is only written for one thread at the moment */
@@ -79,15 +80,11 @@ MinorCPU::MinorCPU(MinorCPUParams *params) :
 
     pipeline = new Minor::Pipeline(*this, *params);
     activityRecorder = pipeline->getActivityRecorder();
-
-    pipelineStartupEvent = new EventFunctionWrapper(
-                                [this]{ wakeupPipeline(); }, name());
 }
 
 MinorCPU::~MinorCPU()
 {
     delete pipeline;
-    delete pipelineStartupEvent;
 
     for (ThreadID thread_id = 0; thread_id < threads.size(); thread_id++) {
         delete threads[thread_id];
@@ -187,9 +184,6 @@ MinorCPU::startup()
 
     BaseCPU::startup();
 
-    for (auto i = threads.begin(); i != threads.end(); i ++)
-        (*i)->startup();
-
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         threads[tid]->startup();
         pipeline->wakeupFetch(tid);
@@ -248,11 +242,7 @@ MinorCPU::drainResume()
     }
 
     for (ThreadID tid = 0; tid < numThreads; tid++){
-        /* Since we would have threads waiting on futex,
-         * we only wake up active threads */
-        if (threads[tid]->status() == ThreadContext::Active) {
-            wakeup(tid);
-        }
+        wakeup(tid);
     }
 
     pipeline->drainResume();
@@ -302,7 +292,7 @@ MinorCPU::activateContext(ThreadID thread_id)
      * schedule an event to wake all them up after their contexts are
      * fully initialized */
     readyThreads.push_back(thread_id);
-    if (!pipelineStartupEvent->scheduled())
+    if (!pipelineStartupEvent.scheduled())
         schedule(pipelineStartupEvent, clockEdge(Cycles(0)));
 }
 
@@ -363,21 +353,6 @@ MasterPort &MinorCPU::getInstPort()
 MasterPort &MinorCPU::getDataPort()
 {
     return pipeline->getDataPort();
-}
-
-MasterPort &MinorCPU::getRoccPort()
-{
-    return pipeline->getRoccPort();
-}
-
-BaseMasterPort &
-MinorCPU::getMasterPort(const std::string &if_name, PortID idx)
-{
-    // Look for new port types!
-    if (if_name == "rocc_port")
-        return getRoccPort();
-    else
-        return BaseCPU::getMasterPort(if_name, idx);
 }
 
 Counter

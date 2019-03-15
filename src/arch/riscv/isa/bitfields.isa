@@ -110,8 +110,3 @@ def bitfield CIMM5 <6:2>;
 def bitfield CIMM3 <12:10>;
 def bitfield CIMM2 <6:5>;
 def bitfield CIMM1 <12>;
-
-// RoCC
-def bitfield XD  <14>;
-def bitfield XS1 <13>;
-def bitfield XS2 <12>;

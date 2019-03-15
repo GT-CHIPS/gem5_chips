@@ -56,11 +56,6 @@
 #include "debug/MinorTrace.hh"
 #include "debug/PCEvent.hh"
 
-/* RoCC-related includes */
-#include "rocc/ifcs.hh"
-#include "rocc/packets.hh"
-#include "rocc/types.hh"
-
 namespace Minor
 {
 
@@ -92,10 +87,7 @@ Execute::Execute(const std::string &name_,
         params.executeLSQTransfersQueueSize,
         params.executeLSQStoreBufferSize,
         params.executeLSQMaxStoreBufferStoresPerCycle),
-    roccInterface(name_ + ".roccIfcs", name_ + ".rocc_port",
-                  cpu_, 16, 16),
-    executeInfo(params.numThreads,
-                  ExecuteThreadInfo(params.executeCommitLimit)),
+    executeInfo(params.numThreads, ExecuteThreadInfo(params.executeCommitLimit)),
     interruptPriority(0),
     issuePriority(0),
     commitPriority(0)
@@ -421,26 +413,6 @@ Execute::handleMemResponse(MinorDynInstPtr inst,
     tryToBranch(inst, fault, branch);
 }
 
-void
-Execute::handleRoccResponse(MinorDynInstPtr inst,
-    RoccRespPtr response, Fault &fault)
-{
-    ThreadID thread_id = inst->id.threadId;
-
-    ExecContext context(cpu, *cpu.threads[thread_id], *this, inst);
-
-    PacketPtr packet = safe_cast<PacketPtr>(response);
-
-    /* Complete the RoCC operation instruction */
-    fault = inst->staticInst->completeReq(packet, &context,
-        inst->traceData);
-
-    roccInterface.popResponse(response);
-
-    /* Commit accounting */
-    doInstCommitAccounting(inst);
-}
-
 bool
 Execute::isInterrupted(ThreadID thread_id) const
 {
@@ -526,38 +498,6 @@ Execute::executeMemRefInst(MinorDynInstPtr inst, BranchData &branch,
 
         /* Restore thread PC */
         thread->pcState(old_pc);
-        issued = true;
-    }
-
-    return issued;
-}
-
-bool
-Execute::executeRoccInst(MinorDynInstPtr inst, Fault &fault)
-{
-    bool issued = false;
-
-    if (!roccInterface.canRequest()) {
-        /* Not acting on instruction yet as the interface
-         * is full. The interface _could_ free up later on
-         * in the cycle. But, conservatively, we wait. */
-        issued = false;
-    } else {
-        ExecContext context(cpu, *cpu.threads[inst->id.threadId],
-            *this, inst);
-
-        DPRINTF(MinorExecute, "Initiating RoCC inst: %s\n", *inst);
-
-        Fault init_fault = inst->staticInst->initiateReq(&context,
-            inst->traceData);
-
-        if (init_fault != NoFault) {
-            DPRINTF(MinorExecute, "Fault on RoCC inst: %s"
-                " initiateReq: %s\n", *inst, init_fault->name());
-            fault = init_fault;
-        }
-
-        /* Done */
         issued = true;
     }
 
@@ -673,45 +613,10 @@ Execute::issue(ThreadID thread_id)
 
                     /* Mark the destinations for this instruction as
                      *  busy */
-                    scoreboard[thread_id].markupInstDests(
-                        inst,
-                        cpu.curCycle() + Cycles(0),
-                        cpu.getContext(thread_id),
-                        false);
+                    scoreboard[thread_id].markupInstDests(inst, cpu.curCycle() +
+                        Cycles(0), cpu.getContext(thread_id), false);
 
-                    DPRINTF(MinorExecute, "Issuing %s to %d\n",
-                        inst->id, noCostFUIndex);
-
-                    inst->fuIndex = noCostFUIndex;
-                    inst->extraCommitDelay = Cycles(0);
-                    inst->extraCommitDelayExpr = NULL;
-
-                    /* Push the instruction onto the inFlight queue so
-                     *  it can be committed in order */
-                    QueuedInst fu_inst(inst);
-                    thread.inFlightInsts->push(fu_inst);
-
-                    issued = true;
-
-                } else if (inst->isRoCC()) {
-                    /* Issue RoCC insts. to a fake numbered FU */
-                    fu_index = noCostFUIndex;
-
-                    /* And start the countdown on activity to allow
-                     *  this instruction to get to the end of its FU */
-                    cpu.activityRecorder->activity();
-
-                    /* Mark the destinations for this instruction as
-                     *  busy */
-                    scoreboard[thread_id].markupInstDests(
-                        inst,
-                        cpu.curCycle() + Cycles(0),
-                        cpu.getContext(thread_id),
-                        true);
-
-                    DPRINTF(MinorExecute, "Issuing %s to %d\n",
-                        inst->id, noCostFUIndex);
-
+                    DPRINTF(MinorExecute, "Issuing %s to %d\n", inst->id, noCostFUIndex);
                     inst->fuIndex = noCostFUIndex;
                     inst->extraCommitDelay = Cycles(0);
                     inst->extraCommitDelayExpr = NULL;
@@ -973,7 +878,7 @@ Execute::doInstCommitAccounting(MinorDynInstPtr inst)
 bool
 Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
     BranchData &branch, Fault &fault, bool &committed,
-    bool &completed_mem_issue, bool &completed_rocc_issue)
+    bool &completed_mem_issue)
 {
     ThreadID thread_id = inst->id.threadId;
     ThreadContext *thread = cpu.getContext(thread_id);
@@ -1037,15 +942,6 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
             completed_inst = completed_mem_inst;
         }
         completed_mem_issue = completed_inst;
-    } else if (inst->staticInst->isRoCC()) {
-        /* We shouldn't be here if this instruction was sent to RoCC
-         * interface already! */
-        assert(!inst->inRoccInterface);
-
-        /* Getting a RoCC to be "committed" means we need to initiate a
-         * request to the RoCC interface */
-        completed_rocc_issue = executeRoccInst(inst, fault);
-        completed_inst = completed_rocc_issue;
     } else if (inst->isInst() && inst->staticInst->isMemBarrier() &&
         !lsq.canPushIntoStoreBuffer())
     {
@@ -1189,7 +1085,6 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
         bool discard_inst = false;
         bool completed_mem_ref = false;
         bool issued_mem_ref = false;
-        bool issued_rocc_inst = false;
         bool early_memory_issue = false;
 
         /* Must set this again to go around the loop */
@@ -1204,11 +1099,6 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
         /* Can we find a mem response for this inst */
         LSQ::LSQRequestPtr mem_response =
             (inst->inLSQ ? lsq.findResponse(inst) : NULL);
-
-        /* Can we find a RoCC response for this inst */
-        RoccRespPtr rocc_response =
-            (inst->inRoccInterface ?
-                    roccInterface.findResponse((void*)inst.get()) : NULL);
 
         DPRINTF(MinorExecute, "Trying to commit canCommitInsts: %d\n",
             can_commit_insts);
@@ -1243,23 +1133,6 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
             }
 
             completed_mem_ref = true;
-            completed_inst = true;
-        } else if (rocc_response) {
-            /* Try to commit from the memory responses next */
-            discard_inst = inst->id.streamSeqNum !=
-                           ex_info.streamSeqNum || discard;
-
-            DPRINTF(MinorExecute, "Trying to commit RoCC response: %s\n",
-                *inst);
-
-            /* We cannot have a squashed RoCC instruction! */
-            assert(!discard_inst);
-
-            /* Handle the response */
-            handleRoccResponse(inst, rocc_response, fault);
-
-            /* Flags */
-            committed_inst = true;
             completed_inst = true;
         } else if (can_commit_insts) {
             /* If true, this instruction will, subject to timing tweaks,
@@ -1304,51 +1177,41 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                 }
             }
 
-            if (!completed_inst) {
-                if (inst->isNoCostInst()) {
-                    /* Try and commit FU-less insts */
-                    DPRINTF(MinorExecute, "Committing no cost inst: %s\n",
-                                                                    *inst);
+            /* Try and commit FU-less insts */
+            if (!completed_inst && inst->isNoCostInst()) {
+                DPRINTF(MinorExecute, "Committing no cost inst: %s", *inst);
 
+                try_to_commit = true;
+                completed_inst = true;
+            }
+
+            /* Try to issue from the ends of FUs and the inFlightInsts
+             *  queue */
+            if (!completed_inst && !inst->inLSQ) {
+                DPRINTF(MinorExecute, "Trying to commit from FUs\n");
+
+                /* Try to commit from a functional unit */
+                /* Is the head inst of the expected inst's FU actually the
+                 *  expected inst? */
+                QueuedInst &fu_inst =
+                    funcUnits[inst->fuIndex]->front();
+                InstSeqNum fu_inst_seq_num = fu_inst.inst->id.execSeqNum;
+
+                if (fu_inst.inst->isBubble()) {
+                    /* No instruction ready */
+                    completed_inst = false;
+                } else if (fu_inst_seq_num != head_exec_seq_num) {
+                    /* Past instruction: we must have already executed it
+                     * in the same cycle and so the head inst isn't
+                     * actually at the end of its pipeline
+                     * Future instruction: handled above and only for
+                     * mem refs on their way to the LSQ */
+                } else if (fu_inst.inst->id == inst->id)  {
+                    /* All instructions can be committed if they have the
+                     *  right execSeqNum and there are no in-flight
+                     *  mem insts before us */
                     try_to_commit = true;
                     completed_inst = true;
-                } else if (inst->isRoCC()) {
-                    /* Try and commit RoCC instructions */
-                    if (!inst->inRoccInterface) {
-                        DPRINTF(MinorExecute, "Executing RoCC inst: %s\n",
-                                                                    *inst);
-
-                        try_to_commit = true;
-                        completed_inst = true;
-                    }
-                } else if (!inst->inLSQ) {
-                    /* Try to issue from the ends of FUs and the inFlightInsts
-                     *  queue */
-                    DPRINTF(MinorExecute, "Trying to commit from FUs\n");
-
-                    /* Try to commit from a functional unit */
-                    /* Is the head inst of the expected inst's FU actually the
-                     *  expected inst? */
-                    QueuedInst &fu_inst =
-                        funcUnits[inst->fuIndex]->front();
-                    InstSeqNum fu_inst_seq_num = fu_inst.inst->id.execSeqNum;
-
-                    if (fu_inst.inst->isBubble()) {
-                        /* No instruction ready */
-                        completed_inst = false;
-                    } else if (fu_inst_seq_num != head_exec_seq_num) {
-                        /* Past instruction: we must have already executed it
-                         * in the same cycle and so the head inst isn't
-                         * actually at the end of its pipeline
-                         * Future instruction: handled above and only for
-                         * mem refs on their way to the LSQ */
-                    } else if (fu_inst.inst->id == inst->id)  {
-                        /* All instructions can be committed if they have the
-                         *  right execSeqNum and there are no in-flight
-                         *  mem insts before us */
-                        try_to_commit = true;
-                        completed_inst = true;
-                    }
                 }
             }
 
@@ -1415,8 +1278,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                     } else {
                         completed_inst = commitInst(inst,
                             early_memory_issue, branch, fault,
-                            committed_inst, issued_mem_ref,
-                            issued_rocc_inst);
+                            committed_inst, issued_mem_ref);
                     }
                 } else {
                     /* Discard instruction */
@@ -1459,11 +1321,6 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
             inst->inLSQ = true;
         }
 
-        /* Mark RoCC instructions as being in the RoCC interface */
-        if (issued_rocc_inst) {
-            inst->inRoccInterface = true;
-        }
-
         /* Pop issued (to LSQ) and discarded mem refs from the inFUMemInsts
          *  as they've *definitely* exited the FUs */
         if (completed_inst && inst->isMemRef()) {
@@ -1476,9 +1333,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
             }
         }
 
-        if (completed_inst &&
-           !(issued_mem_ref && fault == NoFault) &&
-           !(issued_rocc_inst && fault == NoFault)) {
+        if (completed_inst && !(issued_mem_ref && fault == NoFault)) {
             /* Note that this includes discarded insts */
             DPRINTF(MinorExecute, "Completed inst: %s\n", *inst);
 
@@ -1501,8 +1356,7 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                 lsq.completeMemBarrierInst(inst, committed_inst);
             }
 
-            scoreboard[thread_id].clearInstDests(inst,
-                                           inst->isMemRef() || inst->isRoCC());
+            scoreboard[thread_id].clearInstDests(inst, inst->isMemRef());
         }
 
         /* Handle per-cycle instruction counting */
@@ -1557,9 +1411,6 @@ Execute::evaluate()
     /* Do all the cycle-wise activities for dcachePort here to potentially
      *  free up input spaces in the LSQ's requests queue */
     lsq.step();
-
-    /* Do all the cycle-wise activities for roccPort here */
-    roccInterface.step();
 
     /* Check interrupts first.  Will halt commit if interrupt found */
     bool interrupted = false;
@@ -1686,11 +1537,6 @@ Execute::evaluate()
 
             if (head_inst.inst->isNoCostInst()) {
                 head_inst_might_commit = true;
-            } else if (head_inst.inst->isRoCC()) {
-                void* ptr = (void*)head_inst.inst.get();
-                bool found_resp = roccInterface.findResponse(ptr) != NULL;
-                head_inst_might_commit = (!head_inst.inst->inRoccInterface) ||
-                                         (found_resp);
             } else {
                 FUPipeline *fu = funcUnits[head_inst.inst->fuIndex];
                 if ((fu->stalled &&
@@ -1718,7 +1564,6 @@ Execute::evaluate()
        can_issue_next || /* Can still issue a new inst */
        head_inst_might_commit || /* Could possible commit the next inst */
        lsq.needsToTick() || /* Must step the dcache port */
-       roccInterface.needsToTick() || /* Must step the rocc port */
        interrupted; /* There are pending interrupts */
 
     if (!need_to_tick) {
@@ -1849,12 +1694,9 @@ Execute::getCommittingThread()
             MinorDynInstPtr inst = head_inflight_inst->inst;
 
             can_commit_insts = can_commit_insts &&
-                (!inst->inLSQ ||
-                    (lsq.findResponse(inst) != NULL)) &&
-                (!inst->inRoccInterface ||
-                    (roccInterface.findResponse((void*)inst.get()) != NULL));
+                (!inst->inLSQ || (lsq.findResponse(inst) != NULL));
 
-            if (!inst->inLSQ && !inst->inRoccInterface) {
+            if (!inst->inLSQ) {
                 bool can_transfer_mem_inst = false;
                 if (!ex_info.inFUMemInsts->empty() && lsq.canRequest()) {
                     const MinorDynInstPtr head_mem_ref_inst =
@@ -1882,6 +1724,7 @@ Execute::getCommittingThread()
                     (can_transfer_mem_inst || can_execute_fu_inst);
             }
         }
+
 
         if (can_commit_insts) {
             commitPriority = tid;
@@ -1993,9 +1836,9 @@ Execute::isDrained()
         return false;
 
     for (ThreadID tid = 0; tid < cpu.numThreads; tid++) {
-        if ((cpu.getContext(tid)->status() == ThreadContext::Active) &&
-            (!inputBuffer[tid].empty() ||
-             !executeInfo[tid].inFlightInsts->empty())) {
+        if (!inputBuffer[tid].empty() ||
+            !executeInfo[tid].inFlightInsts->empty()) {
+
             return false;
         }
     }
@@ -2033,12 +1876,6 @@ MinorCPU::MinorCPUPort &
 Execute::getDcachePort()
 {
     return lsq.getDcachePort();
-}
-
-MasterPort &
-Execute::getRoccPort()
-{
-    return roccInterface.getRoccPort();
 }
 
 }

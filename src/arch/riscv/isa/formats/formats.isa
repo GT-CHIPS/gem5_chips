@@ -42,8 +42,5 @@
 // Include formats for nonstandard extensions
 ##include "compressed.isa"
 
-// Include RoCC interface
-##include "rocc.isa"
-
 // Include the unknown
 ##include "unknown.isa"
