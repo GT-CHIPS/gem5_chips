@@ -117,11 +117,12 @@ CLIP::flitisizeAndSend(flit *t_flit)
             int num_flits = 0;
             if (t_flit->get_type() == CREDIT_) {
                 num_flits = (int)ceil((float)target_width/(float)cur_width);
-            } else if (t_flit->get_type() == TAIL_ ||
-                       t_flit->get_type() == HEAD_TAIL_) {
+            } else if ((t_flit->get_type() == TAIL_ ||
+                       t_flit->get_type() == HEAD_TAIL_)
+                       && lenBuffer[vc]==0) {
                 num_flits = 1;
             } else {
-                num_flits = (int)ceil((float)std::min(t_flit->msgSize,
+                num_flits = (int)ceil((float)std::min((t_flit->msgSize)*8,
                                        target_width)/(float)cur_width);
             }
             assert(num_flits > 0);
